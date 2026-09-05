@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>KrishiRakshak - Farm Map</title>
+
+    <!-- Leaflet CSS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        h2 {
+            text-align: center;
+            padding: 10px;
+        }
+
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>🌾 KrishiRakshak Farm Location</h2>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+
+    <script>
+
+        // Example farm location: Bengaluru
+        const latitude = 12.97194;
+        const longitude = 77.59369;
+
+        // Create map
+        const map = L.map("map").setView(
+            [latitude, longitude],
+            12
+        );
+
+        // OpenStreetMap layer
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                attribution: "&copy; OpenStreetMap contributors"
+            }
+        ).addTo(map);
+
+        // Add farm marker
+        const marker = L.marker(
+            [latitude, longitude]
+        ).addTo(map);
+
+        // Marker information
+        marker.bindPopup(
+            "<b>🌾 Farm Location</b><br>" +
+            "Bengaluru, India<br>" +
+            "Latitude: " + latitude + "<br>" +
+            "Longitude: " + longitude
+        ).openPopup();
+
+    </script>
+
+</body>
+
+</html>
