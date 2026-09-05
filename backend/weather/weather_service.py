@@ -3,9 +3,44 @@ from urllib.request import urlopen
 from urllib.parse import urlencode
 
 
+def get_coordinates(location):
+    """
+    Convert a city or place name into latitude and longitude.
+    """
+
+    params = {
+        "name": location,
+        "count": 1,
+        "language": "en",
+        "format": "json"
+    }
+
+    url = "https://geocoding-api.open-meteo.com/v1/search?" + urlencode(params)
+
+    try:
+        with urlopen(url) as response:
+            data = json.loads(response.read().decode())
+
+        if "results" not in data or not data["results"]:
+            return None
+
+        result = data["results"][0]
+
+        return {
+            "name": result["name"],
+            "country": result.get("country"),
+            "latitude": result["latitude"],
+            "longitude": result["longitude"]
+        }
+
+    except Exception as error:
+        print("Geocoding error:", error)
+        return None
+
+
 def get_weather(latitude, longitude):
     """
-    Get current weather and forecast for a farm location.
+    Get current weather and 3-day forecast for a farm location.
     """
 
     params = {
@@ -33,10 +68,27 @@ def get_weather(latitude, longitude):
 
 if __name__ == "__main__":
 
-    # Example: Bengaluru coordinates
-    latitude = 12.9716
-    longitude = 77.5946
+    # Enter the city or farm location here
+    location = "Bengaluru"
 
-    weather = get_weather(latitude, longitude)
+    # Convert location name to coordinates
+    coordinates = get_coordinates(location)
 
-    print(json.dumps(weather, indent=4))
+    if coordinates:
+
+        print("Location:", coordinates["name"])
+        print("Country:", coordinates["country"])
+        print("Latitude:", coordinates["latitude"])
+        print("Longitude:", coordinates["longitude"])
+
+        # Get weather using the coordinates
+        weather = get_weather(
+            coordinates["latitude"],
+            coordinates["longitude"]
+        )
+
+        print("\nWeather Data:")
+        print(json.dumps(weather, indent=4))
+
+    else:
+        print("Location not found.")
