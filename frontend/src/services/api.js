@@ -9,3 +9,19 @@ export async function getFarmers() {
 
   return response.json();
 }
+
+export async function recommendCrop(cropData) {
+  const response = await fetch(`${API_BASE_URL}/crop/recommend`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(cropData),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to get crop recommendation");
+  }
+
+  return await response.json();
+}

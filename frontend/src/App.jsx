@@ -1,12 +1,15 @@
+
 import { useEffect, useState } from "react";
-import { getFarmers } from "./services/api";
+import { getFarmers, recommendCrop } from "./services/api";
 
 function App() {
   const [farmer, setFarmer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [recommendedCrop, setRecommendedCrop] = useState("Loading...");
 
   useEffect(() => {
+    // Get farmer information from FastAPI
     getFarmers()
       .then((data) => {
         if (data.length > 0) {
@@ -19,6 +22,24 @@ function App() {
       })
       .finally(() => {
         setLoading(false);
+      });
+
+    // Get crop recommendation from ML model through FastAPI
+    recommendCrop({
+      N: 90,
+      P: 42,
+      K: 43,
+      temperature: 20.8,
+      humidity: 82.0,
+      ph: 6.5,
+      rainfall: 202.9,
+    })
+      .then((data) => {
+        setRecommendedCrop(data.recommended_crop);
+      })
+      .catch((error) => {
+        console.error(error);
+        setRecommendedCrop("Unavailable");
       });
   }, []);
 
@@ -48,7 +69,6 @@ function App() {
 
         {/* Dashboard Cards */}
         <section className="cards">
-
           {/* Weather */}
           <div className="card">
             <h3>🌦️ Weather</h3>
@@ -59,8 +79,8 @@ function App() {
           {/* Crop Recommendation */}
           <div className="card">
             <h3>🌱 Crop Recommendation</h3>
-            <p className="value">Wheat</p>
-            <p>Suitable for your land</p>
+            <p className="value">{recommendedCrop}</p>
+            <p>Recommended by AI model</p>
           </div>
 
           {/* Market Price */}
@@ -76,7 +96,6 @@ function App() {
             <p className="value">2</p>
             <p>Important notifications</p>
           </div>
-
         </section>
 
         {/* Farmer Information */}
@@ -93,7 +112,6 @@ function App() {
 
           {!loading && !error && farmer && (
             <div className="farmer-info">
-
               <p>
                 <strong>Name:</strong> {farmer.name}
               </p>
@@ -112,7 +130,6 @@ function App() {
                 <strong>Crops:</strong>{" "}
                 {farmer.crops.join(", ")}
               </p>
-
             </div>
           )}
 
@@ -126,7 +143,6 @@ function App() {
           <h2>Quick Actions</h2>
 
           <div className="actions">
-
             <button>
               🌱 Get Crop Recommendation
             </button>
@@ -138,13 +154,12 @@ function App() {
             <button>
               💰 Check Market Prices
             </button>
-
           </div>
         </section>
-
       </main>
     </div>
   );
 }
 
 export default App;
+
