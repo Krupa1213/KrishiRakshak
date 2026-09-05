@@ -2,8 +2,11 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
     <title>KrishiRakshak - Farm Risk Map</title>
 
@@ -11,7 +14,7 @@
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+    >
 
     <style>
 
@@ -46,6 +49,12 @@
             cursor: pointer;
             border: none;
             border-radius: 5px;
+            background: #2e7d32;
+            color: white;
+        }
+
+        button:hover {
+            background: #1b5e20;
         }
 
         #map {
@@ -71,7 +80,7 @@
             border: 1px solid #ddd;
             border-radius: 12px;
             background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .card h3 {
@@ -93,14 +102,21 @@
             padding: 20px;
         }
 
+        .error {
+            color: #b71c1c;
+            font-weight: bold;
+        }
+
     </style>
+
 </head>
+
 
 <body>
 
     <h2>🌾 KrishiRakshak Farm Risk Map</h2>
 
-    <!-- Search -->
+
     <div class="search-box">
 
         <input
@@ -117,11 +133,9 @@
     </div>
 
 
-    <!-- Map -->
     <div id="map"></div>
 
 
-    <!-- Information -->
     <div id="information">
 
         <div class="loading">
@@ -132,6 +146,7 @@
 
 
     <!-- Leaflet JS -->
+
     <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
     </script>
@@ -139,17 +154,13 @@
 
     <script>
 
-        // ------------------------------------------------
-        // DEFAULT LOCATION
-        // ------------------------------------------------
+        // --------------------------------------------------
+        // INITIAL MAP
+        // --------------------------------------------------
 
         let latitude = 12.97194;
         let longitude = 77.59369;
 
-
-        // ------------------------------------------------
-        // CREATE MAP
-        // ------------------------------------------------
 
         const map = L.map("map").setView(
             [latitude, longitude],
@@ -157,7 +168,6 @@
         );
 
 
-        // OpenStreetMap
         L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
@@ -167,22 +177,120 @@
         ).addTo(map);
 
 
-        // Marker
         let marker = L.marker(
             [latitude, longitude]
         ).addTo(map);
 
 
-        // ------------------------------------------------
+        // --------------------------------------------------
+        // WEATHER RISK CALCULATION
+        // --------------------------------------------------
+
+        function calculateWeatherRisk(
+            temperature,
+            humidity,
+            rainfall,
+            rainProbability,
+            windSpeed
+        ) {
+
+            const risks = [];
+
+
+            // Heavy rainfall / flood risk
+
+            if (
+                rainfall >= 50 ||
+                rainProbability >= 80
+            ) {
+
+                risks.push(
+                    "Flood / Waterlogging"
+                );
+
+            }
+
+
+            // Heat stress
+
+            if (temperature >= 38) {
+
+                risks.push(
+                    "Heat Stress"
+                );
+
+            }
+
+
+            // High humidity
+
+            if (humidity >= 85) {
+
+                risks.push(
+                    "Fungal Disease Risk"
+                );
+
+            }
+
+
+            // Strong wind
+
+            if (windSpeed >= 40) {
+
+                risks.push(
+                    "Strong Wind"
+                );
+
+            }
+
+
+            let overallRisk;
+
+
+            if (risks.length >= 2) {
+
+                overallRisk = "High";
+
+            }
+
+            else if (risks.length === 1) {
+
+                overallRisk = "Medium";
+
+            }
+
+            else {
+
+                overallRisk = "Low";
+
+            }
+
+
+            return {
+
+                overall_risk: overallRisk,
+
+                identified_risks: risks
+
+            };
+
+        }
+
+
+        // --------------------------------------------------
         // SEARCH LOCATION
-        // ------------------------------------------------
+        // --------------------------------------------------
 
         async function searchLocation() {
 
+
             const location =
-                document.getElementById(
-                    "locationInput"
-                ).value.trim();
+                document
+                    .getElementById(
+                        "locationInput"
+                    )
+                    .value
+                    .trim();
 
 
             if (!location) {
@@ -192,16 +300,19 @@
                 );
 
                 return;
+
             }
 
 
-            // Show loading message
             document.getElementById(
                 "information"
             ).innerHTML = `
 
                 <div class="loading">
-                    ⏳ Loading weather and satellite data...
+
+                    ⏳ Loading weather,
+                    satellite and farm risk data...
+
                 </div>
 
             `;
@@ -209,51 +320,74 @@
 
             try {
 
-                // ------------------------------------------------
-                // WEATHER API
-                // ------------------------------------------------
+
+                // --------------------------------------------------
+                // 1. WEATHER API
+                // --------------------------------------------------
 
                 const weatherResponse =
                     await fetch(
+
                         "http://127.0.0.1:8000/weather?location="
-                        + encodeURIComponent(location)
+                        +
+                        encodeURIComponent(
+                            location
+                        )
+
                     );
+
+
+                if (!weatherResponse.ok) {
+
+                    throw new Error(
+                        "Weather API request failed."
+                    );
+
+                }
 
 
                 const weatherData =
                     await weatherResponse.json();
 
 
-                // Check weather error
                 if (weatherData.error) {
 
                     document.getElementById(
                         "information"
-                    ).innerHTML =
-                        "❌ " + weatherData.error;
+                    ).innerHTML = `
+
+                        <div class="error">
+
+                            ❌ ${weatherData.error}
+
+                        </div>
+
+                    `;
 
                     return;
+
                 }
 
 
-                // ------------------------------------------------
-                // GET LOCATION COORDINATES
-                // ------------------------------------------------
+                // --------------------------------------------------
+                // LOCATION
+                // --------------------------------------------------
 
                 const locationData =
                     weatherData.location;
 
 
                 latitude =
-                    locationData.latitude;
+                    Number(
+                        locationData.latitude
+                    );
+
 
                 longitude =
-                    locationData.longitude;
+                    Number(
+                        locationData.longitude
+                    );
 
-
-                // ------------------------------------------------
-                // UPDATE MAP
-                // ------------------------------------------------
 
                 map.setView(
                     [latitude, longitude],
@@ -271,49 +405,149 @@
                     "<b>🌾 Farm Location</b><br>" +
 
                     locationData.name +
+
                     ", " +
+
                     locationData.country +
 
                     "<br><br>Latitude: " +
+
                     latitude +
 
                     "<br>Longitude: " +
+
                     longitude
 
-                ).openPopup();
+                );
 
 
-                // ------------------------------------------------
-                // WEATHER DATA
-                // ------------------------------------------------
+                // --------------------------------------------------
+                // CURRENT WEATHER
+                // --------------------------------------------------
 
                 const current =
-                    weatherData.weather.current;
+                    weatherData
+                        .weather
+                        .current;
 
 
-                // ------------------------------------------------
-                // SATELLITE NDVI API
-                // ------------------------------------------------
+                // --------------------------------------------------
+                // WEATHER FORECAST
+                // --------------------------------------------------
+
+                const daily =
+                    weatherData
+                        .weather
+                        .daily;
+
+
+                let rainProbability = 0;
+
+
+                if (
+                    daily &&
+                    daily.precipitation_probability_max
+                ) {
+
+                    rainProbability =
+                        Math.max(
+                            ...daily
+                                .precipitation_probability_max
+                        );
+
+                }
+
+
+                // --------------------------------------------------
+                // WEATHER VALUES
+                // --------------------------------------------------
+
+                const temperature =
+                    Number(
+                        current.temperature_2m
+                    );
+
+
+                const humidity =
+                    Number(
+                        current.relative_humidity_2m
+                    );
+
+
+                const rainfall =
+                    Number(
+                        current.precipitation
+                    );
+
+
+                const windSpeed =
+                    Number(
+                        current.wind_speed_10m
+                    );
+
+
+                // --------------------------------------------------
+                // WEATHER RISK
+                // --------------------------------------------------
+
+                const weatherRisk =
+                    calculateWeatherRisk(
+
+                        temperature,
+
+                        humidity,
+
+                        rainfall,
+
+                        rainProbability,
+
+                        windSpeed
+
+                    );
+
+
+                // --------------------------------------------------
+                // 2. NDVI API
+                // --------------------------------------------------
 
                 let ndviData = null;
 
 
                 try {
 
+
                     const ndviResponse =
                         await fetch(
 
                             "http://127.0.0.1:8001/ndvi"
-                            + "?latitude="
-                            + latitude
-                            + "&longitude="
-                            + longitude
+
+                            +
+                            "?latitude="
+
+                            +
+                            encodeURIComponent(
+                                latitude
+                            )
+
+                            +
+                            "&longitude="
+
+                            +
+                            encodeURIComponent(
+                                longitude
+                            )
 
                         );
 
 
-                    ndviData =
-                        await ndviResponse.json();
+                    if (
+                        ndviResponse.ok
+                    ) {
+
+                        ndviData =
+                            await ndviResponse.json();
+
+                    }
 
 
                 }
@@ -328,9 +562,9 @@
                 }
 
 
-                // ------------------------------------------------
-                // NDVI INFORMATION
-                // ------------------------------------------------
+                // --------------------------------------------------
+                // NDVI HTML
+                // --------------------------------------------------
 
                 let ndviHTML = "";
 
@@ -339,6 +573,7 @@
                     ndviData &&
                     ndviData.success
                 ) {
+
 
                     const ndvi =
                         ndviData.ndvi;
@@ -352,55 +587,94 @@
                                 🛰️ Satellite Analysis
                             </h3>
 
+
                             <p>
+
                                 🌱 Mean NDVI:
+
                                 <span class="value">
+
                                     ${ndvi.mean}
+
                                 </span>
+
                             </p>
 
+
                             <p>
+
                                 📉 Minimum NDVI:
+
                                 <span class="value">
+
                                     ${ndvi.minimum}
+
                                 </span>
+
                             </p>
 
+
                             <p>
+
                                 📈 Maximum NDVI:
+
                                 <span class="value">
+
                                     ${ndvi.maximum}
+
                                 </span>
+
                             </p>
 
+
                             <p>
+
                                 ❤️ Vegetation Health:
+
                                 <span class="value">
+
                                     ${ndvi.health_score}/100
+
                                 </span>
+
                             </p>
 
+
                             <p>
-                                ⚠️ Risk Level:
+
+                                ⚠️ NDVI Risk:
+
                                 <span class="risk">
+
                                     ${ndvi.risk_level}
+
                                 </span>
+
                             </p>
 
+
                             <p>
+
                                 🌾 Condition:
+
                                 <b>
-                                    ${ndviData.vegetation_condition}
+
+                                    ${ndviData
+                                        .vegetation_condition}
+
                                 </b>
+
                             </p>
 
                         </div>
 
                     `;
 
+
                 }
 
                 else {
+
 
                     ndviHTML = `
 
@@ -411,8 +685,10 @@
                             </h3>
 
                             <p>
+
                                 ❌ Satellite data
                                 unavailable.
+
                             </p>
 
                         </div>
@@ -422,22 +698,213 @@
                 }
 
 
-                // ------------------------------------------------
-                // DISPLAY WEATHER + SATELLITE
-                // ------------------------------------------------
+                // --------------------------------------------------
+                // 3. COMBINED FARM RISK API
+                // --------------------------------------------------
+
+                let farmRiskData = null;
+
+
+                if (
+                    ndviData &&
+                    ndviData.success
+                ) {
+
+
+                    try {
+
+
+                        const ndviRisk =
+                            ndviData
+                                .ndvi
+                                .risk_level;
+
+
+                        const farmRiskResponse =
+                            await fetch(
+
+                                "http://127.0.0.1:8002/farm-risk"
+
+                                +
+
+                                "?weather_risk="
+
+                                +
+
+                                encodeURIComponent(
+                                    weatherRisk
+                                        .overall_risk
+                                )
+
+                                +
+
+                                "&ndvi_risk="
+
+                                +
+
+                                encodeURIComponent(
+                                    ndviRisk
+                                )
+
+                            );
+
+
+                        if (
+                            farmRiskResponse.ok
+                        ) {
+
+                            farmRiskData =
+                                await farmRiskResponse.json();
+
+                        }
+
+
+                    }
+
+                    catch (farmRiskError) {
+
+                        console.error(
+                            "Farm Risk API error:",
+                            farmRiskError
+                        );
+
+                    }
+
+                }
+
+
+                // --------------------------------------------------
+                // FARM RISK HTML
+                // --------------------------------------------------
+
+                let farmRiskHTML = "";
+
+
+                if (
+                    farmRiskData &&
+                    farmRiskData.success
+                ) {
+
+
+                    const risk =
+                        farmRiskData
+                            .farm_risk;
+
+
+                    farmRiskHTML = `
+
+                        <div class="card">
+
+                            <h3>
+                                🌾 Overall Farm Risk
+                            </h3>
+
+
+                            <p>
+
+                                🌦️ Weather Risk:
+
+                                <span class="value">
+
+                                    ${risk.weather_risk}
+
+                                </span>
+
+                            </p>
+
+
+                            <p>
+
+                                🛰️ NDVI Risk:
+
+                                <span class="value">
+
+                                    ${risk.ndvi_risk}
+
+                                </span>
+
+                            </p>
+
+
+                            <p>
+
+                                📊 Farm Risk Score:
+
+                                <span class="value">
+
+                                    ${risk.overall_score}/100
+
+                                </span>
+
+                            </p>
+
+
+                            <p>
+
+                                🚨 Overall Risk:
+
+                                <span class="risk">
+
+                                    ${risk.overall_risk}
+
+                                </span>
+
+                            </p>
+
+                        </div>
+
+                    `;
+
+
+                }
+
+                else {
+
+
+                    farmRiskHTML = `
+
+                        <div class="card">
+
+                            <h3>
+                                🌾 Overall Farm Risk
+                            </h3>
+
+                            <p>
+
+                                ❌ Combined risk
+                                unavailable.
+
+                            </p>
+
+                        </div>
+
+                    `;
+
+                }
+
+
+                // --------------------------------------------------
+                // DISPLAY EVERYTHING
+                // --------------------------------------------------
 
                 document.getElementById(
                     "information"
                 ).innerHTML = `
 
+
                     <h3>
+
                         📍 ${locationData.name},
+
                         ${locationData.country}
+
                     </h3>
+
 
                     <div class="cards">
 
-                        <!-- WEATHER CARD -->
+
+                        <!-- WEATHER -->
 
                         <div class="card">
 
@@ -445,40 +912,126 @@
                                 🌦️ Weather Information
                             </h3>
 
+
                             <p>
+
                                 🌡️ Temperature:
+
                                 <span class="value">
-                                    ${current.temperature_2m} °C
+
+                                    ${temperature} °C
+
                                 </span>
+
                             </p>
 
+
                             <p>
+
                                 💧 Humidity:
+
                                 <span class="value">
-                                    ${current.relative_humidity_2m} %
+
+                                    ${humidity} %
+
                                 </span>
+
                             </p>
 
+
                             <p>
+
                                 🌧️ Rainfall:
+
                                 <span class="value">
-                                    ${current.precipitation} mm
+
+                                    ${rainfall} mm
+
                                 </span>
+
                             </p>
 
+
                             <p>
-                                💨 Wind Speed:
+
+                                🌧️ Rain Probability:
+
                                 <span class="value">
-                                    ${current.wind_speed_10m} km/h
+
+                                    ${rainProbability} %
+
                                 </span>
+
                             </p>
+
+
+                            <p>
+
+                                💨 Wind Speed:
+
+                                <span class="value">
+
+                                    ${windSpeed} km/h
+
+                                </span>
+
+                            </p>
+
+
+                            <p>
+
+                                ⚠️ Weather Risk:
+
+                                <span class="risk">
+
+                                    ${weatherRisk
+                                        .overall_risk}
+
+                                </span>
+
+                            </p>
+
 
                         </div>
 
 
-                        <!-- SATELLITE CARD -->
-
                         ${ndviHTML}
+
+
+                        ${farmRiskHTML}
+
+
+                    </div>
+
+                `;
+
+
+            }
+
+
+            catch (error) {
+
+
+                console.error(
+                    "Application error:",
+                    error
+                );
+
+
+                document.getElementById(
+                    "information"
+                ).innerHTML = `
+
+                    <div class="error">
+
+                        ❌ Could not connect
+                        to the required APIs.
+
+                        <br><br>
+
+                        Make sure the Weather,
+                        NDVI and Farm Risk APIs
+                        are running.
 
                     </div>
 
@@ -486,28 +1039,12 @@
 
             }
 
-
-            catch (error) {
-
-                document.getElementById(
-                    "information"
-                ).innerHTML = `
-
-                    ❌ Could not connect
-                    to the APIs.
-
-                `;
-
-                console.error(error);
-
-            }
-
         }
 
 
-        // ------------------------------------------------
+        // --------------------------------------------------
         // LOAD DEFAULT LOCATION
-        // ------------------------------------------------
+        // --------------------------------------------------
 
         searchLocation();
 

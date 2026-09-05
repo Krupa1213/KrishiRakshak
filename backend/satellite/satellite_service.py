@@ -42,9 +42,9 @@ def fetch_ndvi(latitude, longitude, start_date, end_date):
         };
     }
     function evaluatePixel(sample) {
-        if ([3, 8, 9, 10].includes(sample.SCL)) return [0];
+        if ([3, 8, 9, 10].includes(sample.SCL)) return [NaN];
         let denominator = sample.B08 + sample.B04;
-        if (denominator === 0) return [0];
+        if (denominator === 0) return [NaN];
         return [(sample.B08 - sample.B04) / denominator];
     }
     """
