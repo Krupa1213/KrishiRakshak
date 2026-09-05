@@ -24,9 +24,40 @@
             padding: 10px;
         }
 
+        .search-box {
+            text-align: center;
+            padding: 15px;
+        }
+
+        input {
+            padding: 10px;
+            width: 250px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
         #map {
-            height: 600px;
+            height: 500px;
             width: 100%;
+        }
+
+        #weather {
+            padding: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .weather-card {
+            display: inline-block;
+            padding: 15px 30px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #f7f7f7;
         }
     </style>
 </head>
@@ -35,18 +66,42 @@
 
     <h2>🌾 KrishiRakshak Farm Location</h2>
 
+    <!-- Location Search -->
+    <div class="search-box">
+
+        <input
+            type="text"
+            id="locationInput"
+            placeholder="Enter farm location"
+            value="Bengaluru"
+        >
+
+        <button onclick="searchLocation()">
+            Search
+        </button>
+
+    </div>
+
+    <!-- Map -->
     <div id="map"></div>
+
+    <!-- Weather -->
+    <div id="weather">
+        Enter a location to get weather information.
+    </div>
+
 
     <!-- Leaflet JS -->
     <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
     </script>
 
+
     <script>
 
-        // Example farm location: Bengaluru
-        const latitude = 12.97194;
-        const longitude = 77.59369;
+        // Default location
+        let latitude = 12.97194;
+        let longitude = 77.59369;
 
         // Create map
         const map = L.map("map").setView(
@@ -54,7 +109,7 @@
             12
         );
 
-        // OpenStreetMap layer
+        // OpenStreetMap
         L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
@@ -62,18 +117,137 @@
             }
         ).addTo(map);
 
-        // Add farm marker
-        const marker = L.marker(
+        // Marker
+        let marker = L.marker(
             [latitude, longitude]
         ).addTo(map);
 
-        // Marker information
-        marker.bindPopup(
-            "<b>🌾 Farm Location</b><br>" +
-            "Bengaluru, India<br>" +
-            "Latitude: " + latitude + "<br>" +
-            "Longitude: " + longitude
-        ).openPopup();
+
+        // Search location
+        async function searchLocation() {
+
+            const location =
+                document.getElementById("locationInput").value;
+
+            if (!location) {
+                alert("Please enter a location.");
+                return;
+            }
+
+            document.getElementById("weather").innerHTML =
+                "Loading weather data...";
+
+
+            try {
+
+                // Call KrishiRakshak Weather API
+                const response = await fetch(
+                    "http://127.0.0.1:8000/weather?location="
+                    + encodeURIComponent(location)
+                );
+
+                const data = await response.json();
+
+
+                if (data.error) {
+
+                    document.getElementById("weather").innerHTML =
+                        "❌ " + data.error;
+
+                    return;
+                }
+
+
+                // Get coordinates
+                const locationData = data.location;
+
+                latitude = locationData.latitude;
+                longitude = locationData.longitude;
+
+
+                // Move map
+                map.setView(
+                    [latitude, longitude],
+                    12
+                );
+
+
+                // Move marker
+                marker.setLatLng(
+                    [latitude, longitude]
+                );
+
+
+                // Update popup
+                marker.bindPopup(
+                    "<b>🌾 Farm Location</b><br>" +
+                    locationData.name +
+                    ", " +
+                    locationData.country +
+                    "<br>Latitude: " +
+                    latitude +
+                    "<br>Longitude: " +
+                    longitude
+                ).openPopup();
+
+
+                // Weather data
+                const current =
+                    data.weather.current;
+
+
+                // Display weather
+                document.getElementById("weather").innerHTML = `
+
+                    <div class="weather-card">
+
+                        <h3>🌦️ Weather Information</h3>
+
+                        <p>
+                            📍 <b>${locationData.name},
+                            ${locationData.country}</b>
+                        </p>
+
+                        <p>
+                            🌡️ Temperature:
+                            <b>${current.temperature_2m} °C</b>
+                        </p>
+
+                        <p>
+                            💧 Humidity:
+                            <b>${current.relative_humidity_2m} %</b>
+                        </p>
+
+                        <p>
+                            🌧️ Rainfall:
+                            <b>${current.precipitation} mm</b>
+                        </p>
+
+                        <p>
+                            💨 Wind Speed:
+                            <b>${current.wind_speed_10m} km/h</b>
+                        </p>
+
+                    </div>
+
+                `;
+
+            }
+
+            catch (error) {
+
+                document.getElementById("weather").innerHTML =
+                    "❌ Could not connect to Weather API.";
+
+                console.error(error);
+
+            }
+
+        }
+
+
+        // Load Bengaluru weather automatically
+        searchLocation();
 
     </script>
 
