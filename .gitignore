@@ -46,3 +46,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Local datasets - do not push to GitHub
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/processed/
+!data/raw/processed/.gitkeep
