@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+
 from backend.weather.weather_service import get_weather
 from backend.satellite.satellite_service import fetch_ndvi
 from backend.satellite.ndvi_analysis import analyze_ndvi
@@ -26,15 +27,19 @@ def calculate_weather_risk(
 
     risks = []
 
+    # Flood / waterlogging
     if rainfall >= 50 or rain_probability >= 80:
         risks.append("Flood / Waterlogging")
 
+    # Heat stress
     if temperature >= 38:
         risks.append("Heat Stress")
 
+    # Fungal disease
     if humidity >= 85:
         risks.append("Fungal Disease Risk")
 
+    # Strong wind
     if wind_speed >= 40:
         risks.append("Strong Wind")
 
@@ -59,10 +64,15 @@ def farm_risk(
     longitude: float
 ):
 
+    output_file = (
+        "backend/satellite/"
+        "fastapi_ndvi_result.tiff"
+    )
+
     try:
 
         # -----------------------------------------
-        # 1. WEATHER
+        # 1. WEATHER DATA
         # -----------------------------------------
 
         weather = get_weather(
@@ -70,59 +80,93 @@ def farm_risk(
             longitude
         )
 
-        current = weather["current"]
-        daily = weather["daily"]
+        if "error" in weather:
+            raise HTTPException(
+                status_code=500,
+                detail=weather["error"]
+            )
+
+        current = weather.get("current", {})
+        daily = weather.get("daily", {})
 
         temperature = float(
-            current["temperature_2m"]
+            current.get(
+                "temperature_2m",
+                0
+            )
         )
 
         humidity = float(
-            current["relative_humidity_2m"]
+            current.get(
+                "relative_humidity_2m",
+                0
+            )
         )
 
         rainfall = float(
-            current["precipitation"]
+            current.get(
+                "precipitation",
+                0
+            )
         )
 
         wind_speed = float(
-            current["wind_speed_10m"]
+            current.get(
+                "wind_speed_10m",
+                0
+            )
+        )
+
+        probability_values = daily.get(
+            "precipitation_probability_max",
+            [0]
         )
 
         rain_probability = max(
-            daily["precipitation_probability_max"]
-        )
-
-
-        weather_risk = calculate_weather_risk(
-            temperature,
-            humidity,
-            rainfall,
-            rain_probability,
-            wind_speed
+            probability_values
         )
 
 
         # -----------------------------------------
-        # 2. SATELLITE / NDVI
+        # 2. WEATHER RISK
+        # -----------------------------------------
+
+        weather_risk = calculate_weather_risk(
+
+            temperature,
+
+            humidity,
+
+            rainfall,
+
+            rain_probability,
+
+            wind_speed
+
+        )
+
+
+        # -----------------------------------------
+        # 3. SENTINEL-2 NDVI
         # -----------------------------------------
 
         start_date = "2026-08-01"
         end_date = "2026-09-05"
 
         ndvi_data = fetch_ndvi(
+
             latitude,
+
             longitude,
+
             start_date,
+
             end_date
+
         )
 
 
-        output_file = (
-            "backend/satellite/"
-            "fastapi_ndvi_result.tiff"
-        )
-
+        # Save TIFF temporarily
 
         with open(
             output_file,
@@ -132,16 +176,13 @@ def farm_risk(
             file.write(ndvi_data)
 
 
+        # -----------------------------------------
+        # 4. NDVI ANALYSIS
+        # -----------------------------------------
+
         analysis = analyze_ndvi(
             output_file
         )
-
-
-        # Remove temporary file
-
-        if os.path.exists(output_file):
-
-            os.remove(output_file)
 
 
         if not analysis["success"]:
@@ -156,17 +197,20 @@ def farm_risk(
 
 
         # -----------------------------------------
-        # 3. COMBINED FARM RISK
+        # 5. COMBINED FARM RISK
         # -----------------------------------------
 
         farm_risk_result = calculate_farm_risk(
+
             weather_risk["overall_risk"],
+
             ndvi_risk
+
         )
 
 
         # -----------------------------------------
-        # 4. FINAL RESPONSE
+        # 6. FINAL RESPONSE
         # -----------------------------------------
 
         return {
@@ -174,8 +218,11 @@ def farm_risk(
             "success": True,
 
             "location": {
+
                 "latitude": latitude,
+
                 "longitude": longitude
+
             },
 
             "weather": {
@@ -186,11 +233,13 @@ def farm_risk(
 
                 "rainfall": rainfall,
 
-                "rain_probability": rain_probability,
+                "rain_probability":
+                    rain_probability,
 
                 "wind_speed": wind_speed,
 
-                "risk": weather_risk
+                "risk":
+                    weather_risk
 
             },
 
@@ -216,7 +265,8 @@ def farm_risk(
 
             },
 
-            "farm_risk": farm_risk_result
+            "farm_risk":
+                farm_risk_result
 
         }
 
@@ -229,6 +279,24 @@ def farm_risk(
     except Exception as error:
 
         raise HTTPException(
+
             status_code=500,
+
             detail=str(error)
+
         )
+
+
+    finally:
+
+        # Delete temporary NDVI file
+
+        if os.path.exists(output_file):
+
+            try:
+
+                os.remove(output_file)
+
+            except Exception:
+
+                pass
