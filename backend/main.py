@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routes import farmer
+from backend.routes import weather_satellite
 
 app = FastAPI(
     title="KrishiRakshak API",
@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(farmer.router)
+app.include_router(weather_satellite.router)
 
 
 @app.get("/")
