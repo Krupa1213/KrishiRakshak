@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>KrishiRakshak - Farm Map</title>
+    <title>KrishiRakshak - Farm Risk Map</title>
 
     <!-- Leaflet CSS -->
     <link
@@ -14,14 +14,17 @@
     />
 
     <style>
+
         body {
             margin: 0;
             font-family: Arial, sans-serif;
+            background: #f5f7f5;
         }
 
         h2 {
             text-align: center;
             padding: 10px;
+            margin-bottom: 0;
         }
 
         .search-box {
@@ -33,40 +36,71 @@
             padding: 10px;
             width: 250px;
             font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
         }
 
         button {
             padding: 10px 18px;
             font-size: 16px;
             cursor: pointer;
+            border: none;
+            border-radius: 5px;
         }
 
         #map {
-            height: 500px;
+            height: 450px;
             width: 100%;
         }
 
-        #weather {
+        #information {
             padding: 20px;
             text-align: center;
-            font-size: 18px;
         }
 
-        .weather-card {
-            display: inline-block;
-            padding: 15px 30px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #f7f7f7;
+        .cards {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
         }
+
+        .card {
+            width: 300px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .risk {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .loading {
+            font-size: 18px;
+            padding: 20px;
+        }
+
     </style>
 </head>
 
 <body>
 
-    <h2>🌾 KrishiRakshak Farm Location</h2>
+    <h2>🌾 KrishiRakshak Farm Risk Map</h2>
 
-    <!-- Location Search -->
+    <!-- Search -->
     <div class="search-box">
 
         <input
@@ -77,17 +111,23 @@
         >
 
         <button onclick="searchLocation()">
-            Search
+            🔍 Search
         </button>
 
     </div>
 
+
     <!-- Map -->
     <div id="map"></div>
 
-    <!-- Weather -->
-    <div id="weather">
-        Enter a location to get weather information.
+
+    <!-- Information -->
+    <div id="information">
+
+        <div class="loading">
+            Enter a location to get farm information.
+        </div>
+
     </div>
 
 
@@ -99,23 +139,33 @@
 
     <script>
 
-        // Default location
+        // ------------------------------------------------
+        // DEFAULT LOCATION
+        // ------------------------------------------------
+
         let latitude = 12.97194;
         let longitude = 77.59369;
 
-        // Create map
+
+        // ------------------------------------------------
+        // CREATE MAP
+        // ------------------------------------------------
+
         const map = L.map("map").setView(
             [latitude, longitude],
             12
         );
 
+
         // OpenStreetMap
         L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
-                attribution: "&copy; OpenStreetMap contributors"
+                attribution:
+                    "&copy; OpenStreetMap contributors"
             }
         ).addTo(map);
+
 
         // Marker
         let marker = L.marker(
@@ -123,110 +173,312 @@
         ).addTo(map);
 
 
-        // Search location
+        // ------------------------------------------------
+        // SEARCH LOCATION
+        // ------------------------------------------------
+
         async function searchLocation() {
 
             const location =
-                document.getElementById("locationInput").value;
+                document.getElementById(
+                    "locationInput"
+                ).value.trim();
+
 
             if (!location) {
-                alert("Please enter a location.");
+
+                alert(
+                    "Please enter a location."
+                );
+
                 return;
             }
 
-            document.getElementById("weather").innerHTML =
-                "Loading weather data...";
+
+            // Show loading message
+            document.getElementById(
+                "information"
+            ).innerHTML = `
+
+                <div class="loading">
+                    ⏳ Loading weather and satellite data...
+                </div>
+
+            `;
 
 
             try {
 
-                // Call KrishiRakshak Weather API
-                const response = await fetch(
-                    "http://127.0.0.1:8000/weather?location="
-                    + encodeURIComponent(location)
-                );
+                // ------------------------------------------------
+                // WEATHER API
+                // ------------------------------------------------
 
-                const data = await response.json();
+                const weatherResponse =
+                    await fetch(
+                        "http://127.0.0.1:8000/weather?location="
+                        + encodeURIComponent(location)
+                    );
 
 
-                if (data.error) {
+                const weatherData =
+                    await weatherResponse.json();
 
-                    document.getElementById("weather").innerHTML =
-                        "❌ " + data.error;
+
+                // Check weather error
+                if (weatherData.error) {
+
+                    document.getElementById(
+                        "information"
+                    ).innerHTML =
+                        "❌ " + weatherData.error;
 
                     return;
                 }
 
 
-                // Get coordinates
-                const locationData = data.location;
+                // ------------------------------------------------
+                // GET LOCATION COORDINATES
+                // ------------------------------------------------
 
-                latitude = locationData.latitude;
-                longitude = locationData.longitude;
+                const locationData =
+                    weatherData.location;
 
 
-                // Move map
+                latitude =
+                    locationData.latitude;
+
+                longitude =
+                    locationData.longitude;
+
+
+                // ------------------------------------------------
+                // UPDATE MAP
+                // ------------------------------------------------
+
                 map.setView(
                     [latitude, longitude],
                     12
                 );
 
 
-                // Move marker
                 marker.setLatLng(
                     [latitude, longitude]
                 );
 
 
-                // Update popup
                 marker.bindPopup(
+
                     "<b>🌾 Farm Location</b><br>" +
+
                     locationData.name +
                     ", " +
                     locationData.country +
-                    "<br>Latitude: " +
+
+                    "<br><br>Latitude: " +
                     latitude +
+
                     "<br>Longitude: " +
                     longitude
+
                 ).openPopup();
 
 
-                // Weather data
+                // ------------------------------------------------
+                // WEATHER DATA
+                // ------------------------------------------------
+
                 const current =
-                    data.weather.current;
+                    weatherData.weather.current;
 
 
-                // Display weather
-                document.getElementById("weather").innerHTML = `
+                // ------------------------------------------------
+                // SATELLITE NDVI API
+                // ------------------------------------------------
 
-                    <div class="weather-card">
+                let ndviData = null;
 
-                        <h3>🌦️ Weather Information</h3>
 
-                        <p>
-                            📍 <b>${locationData.name},
-                            ${locationData.country}</b>
-                        </p>
+                try {
 
-                        <p>
-                            🌡️ Temperature:
-                            <b>${current.temperature_2m} °C</b>
-                        </p>
+                    const ndviResponse =
+                        await fetch(
 
-                        <p>
-                            💧 Humidity:
-                            <b>${current.relative_humidity_2m} %</b>
-                        </p>
+                            "http://127.0.0.1:8001/ndvi"
+                            + "?latitude="
+                            + latitude
+                            + "&longitude="
+                            + longitude
 
-                        <p>
-                            🌧️ Rainfall:
-                            <b>${current.precipitation} mm</b>
-                        </p>
+                        );
 
-                        <p>
-                            💨 Wind Speed:
-                            <b>${current.wind_speed_10m} km/h</b>
-                        </p>
+
+                    ndviData =
+                        await ndviResponse.json();
+
+
+                }
+
+                catch (ndviError) {
+
+                    console.error(
+                        "NDVI API error:",
+                        ndviError
+                    );
+
+                }
+
+
+                // ------------------------------------------------
+                // NDVI INFORMATION
+                // ------------------------------------------------
+
+                let ndviHTML = "";
+
+
+                if (
+                    ndviData &&
+                    ndviData.success
+                ) {
+
+                    const ndvi =
+                        ndviData.ndvi;
+
+
+                    ndviHTML = `
+
+                        <div class="card">
+
+                            <h3>
+                                🛰️ Satellite Analysis
+                            </h3>
+
+                            <p>
+                                🌱 Mean NDVI:
+                                <span class="value">
+                                    ${ndvi.mean}
+                                </span>
+                            </p>
+
+                            <p>
+                                📉 Minimum NDVI:
+                                <span class="value">
+                                    ${ndvi.minimum}
+                                </span>
+                            </p>
+
+                            <p>
+                                📈 Maximum NDVI:
+                                <span class="value">
+                                    ${ndvi.maximum}
+                                </span>
+                            </p>
+
+                            <p>
+                                ❤️ Vegetation Health:
+                                <span class="value">
+                                    ${ndvi.health_score}/100
+                                </span>
+                            </p>
+
+                            <p>
+                                ⚠️ Risk Level:
+                                <span class="risk">
+                                    ${ndvi.risk_level}
+                                </span>
+                            </p>
+
+                            <p>
+                                🌾 Condition:
+                                <b>
+                                    ${ndviData.vegetation_condition}
+                                </b>
+                            </p>
+
+                        </div>
+
+                    `;
+
+                }
+
+                else {
+
+                    ndviHTML = `
+
+                        <div class="card">
+
+                            <h3>
+                                🛰️ Satellite Analysis
+                            </h3>
+
+                            <p>
+                                ❌ Satellite data
+                                unavailable.
+                            </p>
+
+                        </div>
+
+                    `;
+
+                }
+
+
+                // ------------------------------------------------
+                // DISPLAY WEATHER + SATELLITE
+                // ------------------------------------------------
+
+                document.getElementById(
+                    "information"
+                ).innerHTML = `
+
+                    <h3>
+                        📍 ${locationData.name},
+                        ${locationData.country}
+                    </h3>
+
+                    <div class="cards">
+
+                        <!-- WEATHER CARD -->
+
+                        <div class="card">
+
+                            <h3>
+                                🌦️ Weather Information
+                            </h3>
+
+                            <p>
+                                🌡️ Temperature:
+                                <span class="value">
+                                    ${current.temperature_2m} °C
+                                </span>
+                            </p>
+
+                            <p>
+                                💧 Humidity:
+                                <span class="value">
+                                    ${current.relative_humidity_2m} %
+                                </span>
+                            </p>
+
+                            <p>
+                                🌧️ Rainfall:
+                                <span class="value">
+                                    ${current.precipitation} mm
+                                </span>
+                            </p>
+
+                            <p>
+                                💨 Wind Speed:
+                                <span class="value">
+                                    ${current.wind_speed_10m} km/h
+                                </span>
+                            </p>
+
+                        </div>
+
+
+                        <!-- SATELLITE CARD -->
+
+                        ${ndviHTML}
 
                     </div>
 
@@ -234,10 +486,17 @@
 
             }
 
+
             catch (error) {
 
-                document.getElementById("weather").innerHTML =
-                    "❌ Could not connect to Weather API.";
+                document.getElementById(
+                    "information"
+                ).innerHTML = `
+
+                    ❌ Could not connect
+                    to the APIs.
+
+                `;
 
                 console.error(error);
 
@@ -246,7 +505,10 @@
         }
 
 
-        // Load Bengaluru weather automatically
+        // ------------------------------------------------
+        // LOAD DEFAULT LOCATION
+        // ------------------------------------------------
+
         searchLocation();
 
     </script>
