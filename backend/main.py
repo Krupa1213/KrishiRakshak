@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routes import weather_satellite
+
+from backend.routes import weather_satellite, farmer, farm_profile
+from backend.crop_health.crop_health_api import router as crop_health_router
+
 
 app = FastAPI(
     title="KrishiRakshak API",
@@ -8,7 +11,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow React frontend to communicate with FastAPI
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -20,7 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(weather_satellite.router)
+app.include_router(farmer.router)
+app.include_router(farm_profile.router)
+app.include_router(crop_health_router)
 
 
 @app.get("/")
