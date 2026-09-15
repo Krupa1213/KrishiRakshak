@@ -6,6 +6,7 @@ import joblib
 import os
 
 router = APIRouter(prefix="/crop", tags=["Crop Recommendation"])
+
 crop_history_collection = db["crop_history"]
 
 MODEL_PATH = os.path.join(
@@ -34,6 +35,7 @@ class CropInput(BaseModel):
 
 @router.post("/recommend")
 def recommend_crop(data: CropInput):
+
     if model is None:
         raise HTTPException(
             status_code=500,
@@ -52,17 +54,35 @@ def recommend_crop(data: CropInput):
 
     prediction = model.predict(input_data)[0]
 
-    crop_history_collection.insert_one({
-        "input": input_data.iloc[0].to_dict(),
+    input_record = {
+        "N": round(float(data.N), 2),
+        "P": round(float(data.P), 2),
+        "K": round(float(data.K), 2),
+        "temperature": round(float(data.temperature), 2),
+        "humidity": round(float(data.humidity), 2),
+        "ph": round(float(data.ph), 2),
+        "rainfall": round(float(data.rainfall), 2)
+    }
+
+    existing_record = crop_history_collection.find_one({
+        "input": input_record,
         "recommended_crop": prediction
     })
+
+    if not existing_record:
+        crop_history_collection.insert_one({
+            "input": input_record,
+            "recommended_crop": prediction
+        })
 
     return {
         "recommended_crop": prediction
     }
 
+
 @router.get("/history")
 def get_crop_history():
+
     history = list(
         crop_history_collection.find(
             {},

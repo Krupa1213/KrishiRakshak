@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://192.168.1.107:8000";
+const API_BASE_URL = "http://192.168.1.109:8000";
 
 export async function getFarmers() {
   const response = await fetch(`${API_BASE_URL}/farmers/`);
@@ -85,4 +85,14 @@ export async function getAdvisory(advisoryData) {
   }
 
   return data;
+}
+
+export async function getMarketPrice() {
+  const response = await fetch(`${API_BASE_URL}/market/price`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch market price");
+  }
+
+  return await response.json();
 }

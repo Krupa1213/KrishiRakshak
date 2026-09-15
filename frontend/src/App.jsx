@@ -6,7 +6,8 @@ import {
   getFarmRisk,
   detectDisease,
   getCropHistory,
-  getAdvisory
+  getAdvisory,
+  getMarketPrice,
 } from "./services/api";
 
 function getTimeGreeting() {
@@ -29,6 +30,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recommendedCrop, setRecommendedCrop] = useState("");
+  const [marketPrice, setMarketPrice] = useState(null);
+const [marketPriceLoading, setMarketPriceLoading] = useState(false);
+const [marketPriceError, setMarketPriceError] = useState("");
+const [alerts, setAlerts] = useState([]);
   const [farmRisk, setFarmRisk] = useState(null);
   const [farmRiskLoading, setFarmRiskLoading] = useState(false);
   const [farmRiskError, setFarmRiskError] = useState("");
@@ -154,23 +159,24 @@ const handleAdvisory = async () => {
   }
 };
 
-  useEffect(() => {
-    // Get farmer information from FastAPI
-    getFarmers()
-      .then((data) => {
-        if (data.length > 0) {
-          setFarmer(data[0]);
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        setError("Unable to load farmer information.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+ useEffect(() => {
+  // Load farmer information
+  getFarmers()
+    .then((data) => {
+      if (data.length > 0) {
+        setFarmer(data[0]);
+      }
+    })
+    .catch((error) => {
+      console.error("Failed to load farmer information:", error);
+      setError("Unable to load farmer information.");
+    })
+    .finally(() => {
+      setLoading(false);
+    });
 
-    getCropHistory()
+  // Load crop recommendation history
+  getCropHistory()
     .then((data) => {
       setCropHistory(data);
     })
@@ -178,7 +184,25 @@ const handleAdvisory = async () => {
       console.error("Failed to load crop history:", error);
     });
 
-  }, []);
+  // Load market price
+  setMarketPriceLoading(true);
+
+  getMarketPrice()
+    .then((data) => {
+      setMarketPrice({
+        price: data.price,
+        crop: data.crop,
+        unit: data.unit,
+      });
+    })
+    .catch((error) => {
+      console.error("Failed to load market price:", error);
+      setMarketPriceError("Unable to load market price.");
+    })
+    .finally(() => {
+      setMarketPriceLoading(false);
+    });
+}, []);
 
   const checkFarmRisk = async () => {
   setFarmRiskLoading(true);
@@ -197,6 +221,29 @@ const handleAdvisory = async () => {
 
         const data = await getFarmRisk(latitude, longitude);
         setFarmRisk(data);
+
+        const newAlerts = [];
+
+if (data.farm_risk.overall_risk === "High") {
+  newAlerts.push("⚠️ Farm risk is High");
+}
+
+if (data.weather.risk.overall_risk === "High") {
+  newAlerts.push("🌦️ Weather risk is High");
+}
+
+if (
+  data.satellite.risk_level === "High" ||
+  data.satellite.risk_level === "Medium"
+) {
+  newAlerts.push("🌱 Crop vegetation needs attention");
+}
+
+if (newAlerts.length === 0) {
+  newAlerts.push("✅ No critical alerts");
+}
+
+setAlerts(newAlerts);
       } catch (error) {
         console.error(error);
         setFarmRiskError(error.message);
@@ -268,8 +315,14 @@ const handleAdvisory = async () => {
   {/* Weather */}
   <div id="weather" className="card">
     <h3>🌦️ Weather</h3>
-    <p className="value">28°C</p>
-    <p>Partly Cloudy</p>
+    <p className="value">
+  {farmRisk ? `${farmRisk.weather.temperature}°C` : "Not checked"}
+</p>
+    <p>
+  {farmRisk
+    ? `Humidity: ${farmRisk.weather.humidity}%`
+    : "Check Farm Risk for weather"}
+</p>
   </div>
 
   {/* Crop Recommendation */}
@@ -281,22 +334,60 @@ const handleAdvisory = async () => {
     <p>Recommended by AI model</p>
   </div>
 
-  {/* Market Price */}
-  <div id="market-prices" className="card">
-    <h3>💰 Market Price</h3>
-    <p className="value">₹2,450</p>
-    <p>Wheat / Quintal</p>
-  </div>
+{/* Market Price */}
+<div id="market-prices" className="card">
+  <h3>💰 Market Price</h3>
 
-  {/* Alerts */}
-  <div id="alerts" className="card">
-    <h3>🔔 Alerts</h3>
-    <p className="value">2</p>
-    <p>Important notifications</p>
-  </div>
+  {marketPriceLoading ? (
+    <p className="value">Loading...</p>
+  ) : marketPriceError ? (
+    <p>{marketPriceError}</p>
+  ) : marketPrice ? (
+    <>
+      <p className="value">
+        ₹{marketPrice.price.toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        {marketPrice.crop} / {marketPrice.unit}
+      </p>
+
+      <small>Market: Vadodara</small>
+    </>
+  ) : (
+    <p className="value">Not available</p>
+  )}
+</div>
+
+ {/* Alerts */}
+<div id="alerts" className="card">
+  <h3>🔔 Alerts</h3>
+
+  <p className="value">{alerts.length}</p>
+
+  {alerts.length === 0 ? (
+    <p>✅ No critical alerts</p>
+  ) : (
+    <div>
+      {alerts.map((alert, index) => (
+        <p key={index}>{alert}</p>
+      ))}
+    </div>
+  )}
+</div>
 
   {/* Farm Health */}
-  <div className="card">
+  <div
+  className={`card ${
+    farmRisk
+      ? farmRisk.farm_risk.overall_risk === "High"
+        ? "farm-health-high"
+        : farmRisk.farm_risk.overall_risk === "Medium"
+        ? "farm-health-medium"
+        : "farm-health-low"
+      : ""
+  }`}
+>
     <h3>⚠️ Farm Health</h3>
 
     <p className="value">
