@@ -17,5 +17,7 @@ db = client["KrishiRakshak"]
 
 farmers_collection = db["farmers"]
 farms_collection = db["farms"]
+crops_collection = db["crops"]
+soil_collection = db["soil"]
 
 print("MongoDB connection successful!")
