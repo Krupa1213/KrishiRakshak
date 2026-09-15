@@ -1,12 +1,15 @@
 
 import { useEffect, useState } from "react";
-import { getFarmers, recommendCrop } from "./services/api";
+import { getFarmers, recommendCrop, getFarmRisk } from "./services/api";
 
 function App() {
   const [farmer, setFarmer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recommendedCrop, setRecommendedCrop] = useState("Loading...");
+  const [farmRisk, setFarmRisk] = useState(null);
+  const [farmRiskLoading, setFarmRiskLoading] = useState(false);
+  const [farmRiskError, setFarmRiskError] = useState("");
 
   useEffect(() => {
     // Get farmer information from FastAPI
@@ -42,6 +45,21 @@ function App() {
         setRecommendedCrop("Unavailable");
       });
   }, []);
+
+  const checkFarmRisk = async () => {
+  setFarmRiskLoading(true);
+  setFarmRiskError("");
+
+  try {
+    const data = await getFarmRisk(12.9716, 77.5946);
+    setFarmRisk(data);
+  } catch (error) {
+    console.error(error);
+    setFarmRiskError(error.message);
+  } finally {
+    setFarmRiskLoading(false);
+  }
+};
 
   return (
     <div className="app">
@@ -96,6 +114,52 @@ function App() {
             <p className="value">2</p>
             <p>Important notifications</p>
           </div>
+        </section>
+
+                {/* Farm Risk Analysis */}
+        <section className="dashboard-section">
+          <h2>⚠️ Farm Risk Analysis</h2>
+
+          <button onClick={checkFarmRisk}>
+            🛰️ Check Farm Risk
+          </button>
+
+          {farmRiskLoading && (
+            <p>Analyzing weather and satellite data...</p>
+          )}
+
+          {farmRiskError && (
+            <p>Farm risk unavailable: {farmRiskError}</p>
+          )}
+
+          {farmRisk && (
+            <div className="farmer-info">
+              <p>
+                <strong>Weather Risk:</strong>{" "}
+                {farmRisk.weather.risk.overall_risk}
+              </p>
+
+              <p>
+                <strong>NDVI Risk:</strong>{" "}
+                {farmRisk.satellite.risk_level}
+              </p>
+
+              <p>
+                <strong>Vegetation Condition:</strong>{" "}
+                {farmRisk.satellite.vegetation_condition}
+              </p>
+
+              <p>
+                <strong>Overall Farm Risk:</strong>{" "}
+                {farmRisk.farm_risk.overall_risk}
+              </p>
+
+              <p>
+                <strong>Risk Score:</strong>{" "}
+                {farmRisk.farm_risk.overall_score} / 100
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Farmer Information */}

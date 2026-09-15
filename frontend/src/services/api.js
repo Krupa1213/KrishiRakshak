@@ -25,3 +25,18 @@ export async function recommendCrop(cropData) {
 
   return await response.json();
 }
+
+export async function getFarmRisk(latitude, longitude) {
+  const response = await fetch(
+    `${API_BASE_URL}/farm/risk?latitude=${latitude}&longitude=${longitude}`
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || "Failed to get farm risk"
+    );
+  }
+
+  return await response.json();
+}
