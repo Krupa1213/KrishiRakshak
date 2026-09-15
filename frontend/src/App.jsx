@@ -5,8 +5,23 @@ import {
   recommendCrop,
   getFarmRisk,
   detectDisease,
-  getCropHistory
+  getCropHistory,
+  getAdvisory
 } from "./services/api";
+
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return "Good Morning, Farmer 👋";
+  } else if (hour >= 12 && hour < 17) {
+    return "Good Afternoon, Farmer 👋";
+  } else if (hour >= 17 && hour < 21) {
+    return "Good Evening, Farmer 👋";
+  } else {
+    return "Good Night, Farmer 👋";
+  }
+}
 
 function App() {
   const [farmer, setFarmer] = useState(null);
@@ -30,7 +45,9 @@ const [diseaseImage, setDiseaseImage] = useState(null);
 const [diseaseResult, setDiseaseResult] = useState(null);
 const [diseaseLoading, setDiseaseLoading] = useState(false);
 const [diseaseError, setDiseaseError] = useState("");
-
+const [advisory, setAdvisory] = useState(null);
+const [advisoryLoading, setAdvisoryLoading] = useState(false);
+const [advisoryError, setAdvisoryError] = useState("");
 const [cropLoading, setCropLoading] = useState(false);
 const [cropError, setCropError] = useState("");
 const handleCropRecommendation = async (e) => {
@@ -99,6 +116,41 @@ const handleDiseaseDetection = async () => {
     );
   } finally {
     setDiseaseLoading(false);
+  }
+};
+
+const handleAdvisory = async () => {
+  setAdvisoryLoading(true);
+  setAdvisoryError("");
+
+  try {
+    const selectedCrop = recommendedCrop || "Unknown";
+
+    // Disease model is currently trained for maize/corn
+    const isMaizeCrop =
+      selectedCrop.toLowerCase() === "maize" ||
+      selectedCrop.toLowerCase() === "corn";
+
+    const disease =
+      isMaizeCrop && diseaseResult?.prediction
+        ? diseaseResult.prediction
+        : "None";
+
+    const data = await getAdvisory({
+      crop: selectedCrop,
+      disease: disease,
+      weather_risk: farmRisk?.farm_risk?.weather_risk || "Low",
+      farm_risk: farmRisk?.farm_risk?.overall_risk || "Low",
+    });
+
+    setAdvisory(data);
+  } catch (error) {
+    console.error(error);
+    setAdvisoryError(
+      error.message || "Failed to get farming advisory."
+    );
+  } finally {
+    setAdvisoryLoading(false);
   }
 };
 
@@ -195,6 +247,10 @@ const handleDiseaseDetection = async () => {
   ⚠️ Farm Risk
 </button>
 
+<button onClick={() => document.getElementById("advisory")?.scrollIntoView({ behavior: "smooth" })}>
+  🌾 Farmer Advisory
+</button>
+
         </nav>
       </aside>
 
@@ -202,40 +258,61 @@ const handleDiseaseDetection = async () => {
       <main className="main-content">
         {/* Header */}
         <header>
-          <h1>Good Morning, Farmer 👋</h1>
+          <h1>{getTimeGreeting()}</h1>
           <p>Smart decisions for better farming</p>
         </header>
 
         {/* Dashboard Cards */}
-        <section className="cards">
-          {/* Weather */}
-          <div id="weather" className="card">
-  <h3>🌦️ Weather</h3>
-            <p className="value">28°C</p>
-            <p>Partly Cloudy</p>
-          </div>
+<section className="cards">
 
-          {/* Crop Recommendation */}
-          <div className="card">
-            <h3>🌱 Crop Recommendation</h3>
-            <p className="value">{recommendedCrop}</p>
-            <p>Recommended by AI model</p>
-          </div>
+  {/* Weather */}
+  <div id="weather" className="card">
+    <h3>🌦️ Weather</h3>
+    <p className="value">28°C</p>
+    <p>Partly Cloudy</p>
+  </div>
 
-          {/* Market Price */}
-          <div id="market-prices" className="card">
-  <h3>💰 Market Price</h3>
-            <p className="value">₹2,450</p>
-            <p>Wheat / Quintal</p>
-          </div>
+  {/* Crop Recommendation */}
+  <div className="card">
+    <h3>🌱 Crop Recommendation</h3>
+    <p className="value">
+      {recommendedCrop || "Not analyzed"}
+    </p>
+    <p>Recommended by AI model</p>
+  </div>
 
-          {/* Alerts */}
-          <div id="alerts" className="card">
-  <h3>🔔 Alerts</h3>
-            <p className="value">2</p>
-            <p>Important notifications</p>
-          </div>
-        </section>
+  {/* Market Price */}
+  <div id="market-prices" className="card">
+    <h3>💰 Market Price</h3>
+    <p className="value">₹2,450</p>
+    <p>Wheat / Quintal</p>
+  </div>
+
+  {/* Alerts */}
+  <div id="alerts" className="card">
+    <h3>🔔 Alerts</h3>
+    <p className="value">2</p>
+    <p>Important notifications</p>
+  </div>
+
+  {/* Farm Health */}
+  <div className="card">
+    <h3>⚠️ Farm Health</h3>
+
+    <p className="value">
+      {farmRisk
+        ? farmRisk.farm_risk.overall_risk
+        : "Not checked"}
+    </p>
+
+    <p>
+      {farmRisk
+        ? `Risk Score: ${farmRisk.farm_risk.overall_score}/100`
+        : "Check Farm Risk"}
+    </p>
+  </div>
+
+</section>
 
         {/* Crop Recommendation Form */}
 <section id="crop-recommendation" className="dashboard-section">
@@ -442,9 +519,14 @@ const handleDiseaseDetection = async () => {
       </p>
 
       <p>
-        <strong>Confidence:</strong>{" "}
-        {diseaseResult.confidence}%
-      </p>
+  <strong>Confidence:</strong>{" "}
+  {diseaseResult.confidence.toFixed(2)}%
+</p>
+
+<p>
+  <strong>Recommendation:</strong>{" "}
+  {diseaseResult.recommendation}
+</p>
     </div>
   )}
 </section>
@@ -494,6 +576,53 @@ const handleDiseaseDetection = async () => {
             </div>
           )}
         </section>
+
+        
+{/* Farmer Advisory */}
+<section id="advisory" className="dashboard-section">
+  <h2>🌾 Farmer Advisory</h2>
+
+  <p>
+    Get simple farming advice based on crop health, weather, and farm risk.
+  </p>
+
+  <button
+    onClick={handleAdvisory}
+    disabled={advisoryLoading}
+  >
+    {advisoryLoading
+      ? "🔄 Generating Advice..."
+      : "🌾 Get Farming Advice"}
+  </button>
+
+  {advisoryError && (
+    <div className="farmer-info">
+      <p>⚠️ {advisoryError}</p>
+    </div>
+  )}
+
+  {advisory && (
+    <div className="farmer-info">
+      <h3>🤖 KrishiRakshak Advisory</h3>
+
+      <p>
+        🌱 <strong>Crop:</strong> {advisory.crop}
+      </p>
+
+      <div>
+        <strong>📋 Recommended Actions</strong>
+
+        {advisory.advisory.map((item, index) => (
+          <p key={index}>
+            {index + 1}. ✅ {item}
+          </p>
+        ))}
+      </div>
+    </div>
+  )}
+</section>
+
+
 
         {/* Farmer Information */}
         <section id="farmer-profile" className="dashboard-section">
