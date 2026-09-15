@@ -28,3 +28,21 @@ class Farm(BaseModel):
     irrigation_type: Optional[str] = None
 
     growth_stage: Optional[str] = None
+
+class CropData(BaseModel):
+    farm_id: str
+    crop_name: str
+    crop_variety: Optional[str] = None
+    sowing_date: Optional[str] = None
+    growth_stage: Optional[str] = None
+    expected_harvest_date: Optional[str] = None
+
+
+class SoilData(BaseModel):
+    farm_id: str
+    soil_type: Optional[str] = None
+    ph: Optional[float] = None
+    nitrogen: Optional[float] = None
+    phosphorus: Optional[float] = None
+    potassium: Optional[float] = None
+    moisture: Optional[float] = None
