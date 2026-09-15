@@ -11,7 +11,7 @@ function App() {
   const [farmer, setFarmer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [recommendedCrop, setRecommendedCrop] = useState("Loading...");
+  const [recommendedCrop, setRecommendedCrop] = useState("");
   const [farmRisk, setFarmRisk] = useState(null);
   const [farmRiskLoading, setFarmRiskLoading] = useState(false);
   const [farmRiskError, setFarmRiskError] = useState("");
@@ -114,23 +114,7 @@ const handleDiseaseDetection = async () => {
         setLoading(false);
       });
 
-    // Get crop recommendation from ML model through FastAPI
-    recommendCrop({
-      N: 90,
-      P: 42,
-      K: 43,
-      temperature: 20.8,
-      humidity: 82.0,
-      ph: 6.5,
-      rainfall: 202.9,
-    })
-      .then((data) => {
-        setRecommendedCrop(data.recommended_crop);
-      })
-      .catch((error) => {
-        console.error(error);
-        setRecommendedCrop("Unavailable");
-      });
+   
   }, []);
 
   const checkFarmRisk = async () => {
@@ -174,12 +158,27 @@ const handleDiseaseDetection = async () => {
         <h2>🌾 KrishiRakshak</h2>
 
         <nav>
-          <button>🏠 Dashboard</button>
-          <button>👨‍🌾 Farmer Profile</button>
-          <button>🌱 Crop Recommendation</button>
-          <button>🌦️ Weather</button>
-          <button>💰 Market Prices</button>
-          <button>🔔 Alerts</button>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+  🏠 Dashboard
+</button>
+          <button onClick={() => document.getElementById("farmer-profile")?.scrollIntoView({ behavior: "smooth" })}>
+  👨‍🌾 Farmer Profile
+</button>
+          <button onClick={() => document.getElementById("crop-recommendation")?.scrollIntoView({ behavior: "smooth" })}>
+  🌱 Crop Recommendation
+</button>
+          <button onClick={() => document.getElementById("disease-detection")?.scrollIntoView({ behavior: "smooth" })}>
+  🔬 Disease Detection
+</button>
+          <button onClick={() => document.getElementById("weather")?.scrollIntoView({ behavior: "smooth" })}>
+  🌦️ Weather
+</button>
+          <button onClick={() => document.getElementById("market-prices")?.scrollIntoView({ behavior: "smooth" })}>
+  💰 Market Prices
+</button>
+          <button onClick={() => document.getElementById("alerts")?.scrollIntoView({ behavior: "smooth" })}>
+  🔔 Alerts
+</button>
         </nav>
       </aside>
 
@@ -194,8 +193,8 @@ const handleDiseaseDetection = async () => {
         {/* Dashboard Cards */}
         <section className="cards">
           {/* Weather */}
-          <div className="card">
-            <h3>🌦️ Weather</h3>
+          <div id="weather" className="card">
+  <h3>🌦️ Weather</h3>
             <p className="value">28°C</p>
             <p>Partly Cloudy</p>
           </div>
@@ -208,21 +207,21 @@ const handleDiseaseDetection = async () => {
           </div>
 
           {/* Market Price */}
-          <div className="card">
-            <h3>💰 Market Price</h3>
+          <div id="market-prices" className="card">
+  <h3>💰 Market Price</h3>
             <p className="value">₹2,450</p>
             <p>Wheat / Quintal</p>
           </div>
 
           {/* Alerts */}
-          <div className="card">
-            <h3>🔔 Alerts</h3>
+          <div id="alerts" className="card">
+  <h3>🔔 Alerts</h3>
             <p className="value">2</p>
             <p>Important notifications</p>
           </div>
         </section>
         {/* Crop Recommendation Form */}
-<section className="dashboard-section">
+<section id="crop-recommendation" className="dashboard-section">
   <h2>🌱 Crop Recommendation</h2>
   <p>Enter your soil and weather conditions to get an AI-based crop recommendation.</p>
 
@@ -342,7 +341,7 @@ const handleDiseaseDetection = async () => {
 </section>
 
 {/* Crop Disease Detection */}
-<section className="dashboard-section">
+<section id="disease-detection" className="dashboard-section">
   <h2>🔬 Crop Disease Detection</h2>
 
   <p>
@@ -439,8 +438,8 @@ const handleDiseaseDetection = async () => {
         </section>
 
         {/* Farmer Information */}
-        <section className="dashboard-section">
-          <h2>👨‍🌾 Farmer Information</h2>
+        <section id="farmer-profile" className="dashboard-section">
+  <h2>👨‍🌾 Farmer Information</h2>
 
           {loading && (
             <p>Loading farmer information...</p>
