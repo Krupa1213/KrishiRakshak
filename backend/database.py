@@ -11,5 +11,6 @@ client = MongoClient(MONGODB_URI)
 db = client["KrishiRakshak"]
 
 farmers_collection = db["farmers"]
+farms_collection = db["farms"]
 
 print("MongoDB connection successful!")
