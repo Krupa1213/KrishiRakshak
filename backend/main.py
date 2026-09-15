@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routes import farmer, crop, weather_satellite
 from backend.routes import disease
-from backend.routes import advisory, market, farm_profile
+from backend.routes import advisory, market, farm_profile, government_schemes
 
 from backend.crop_health.crop_health_api import router as crop_health_router
 from backend.decision_support.decision_api import router as decision_support_router
@@ -42,6 +42,7 @@ app.include_router(weather_satellite.router)
 app.include_router(farm_profile.router)
 app.include_router(crop_health_router)
 app.include_router(decision_support_router)
+app.include_router(government_schemes.router)
 
 
 @app.get("/")
