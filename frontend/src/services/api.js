@@ -40,3 +40,21 @@ export async function getFarmRisk(latitude, longitude) {
 
   return await response.json();
 }
+
+export async function detectDisease(imageFile) {
+  const formData = new FormData();
+  formData.append("file", imageFile);
+
+  const response = await fetch(`${API_BASE_URL}/disease/predict`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to detect crop disease");
+  }
+
+  return data;
+}

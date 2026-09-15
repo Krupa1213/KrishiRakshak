@@ -9,7 +9,7 @@ from tensorflow.keras.applications import MobileNetV2
 # Settings
 # -----------------------------
 
-DATASET_DIR = "data/raw/plantvillage"
+DATASET_DIR = "data/raw/cornmaize"
 
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 32

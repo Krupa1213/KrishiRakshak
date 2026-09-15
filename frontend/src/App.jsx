@@ -1,6 +1,11 @@
 
 import { useEffect, useState } from "react";
-import { getFarmers, recommendCrop, getFarmRisk } from "./services/api";
+import {
+  getFarmers,
+  recommendCrop,
+  getFarmRisk,
+  detectDisease,
+} from "./services/api";
 
 function App() {
   const [farmer, setFarmer] = useState(null);
@@ -10,6 +15,88 @@ function App() {
   const [farmRisk, setFarmRisk] = useState(null);
   const [farmRiskLoading, setFarmRiskLoading] = useState(false);
   const [farmRiskError, setFarmRiskError] = useState("");
+  const [cropData, setCropData] = useState({
+  N: "",
+  P: "",
+  K: "",
+  temperature: "",
+  humidity: "",
+  ph: "",
+  rainfall: "",
+});
+const [diseaseImage, setDiseaseImage] = useState(null);
+const [diseaseResult, setDiseaseResult] = useState(null);
+const [diseaseLoading, setDiseaseLoading] = useState(false);
+const [diseaseError, setDiseaseError] = useState("");
+
+const [cropLoading, setCropLoading] = useState(false);
+const [cropError, setCropError] = useState("");
+const handleCropRecommendation = async (e) => {
+  e.preventDefault();
+
+  setCropLoading(true);
+  setCropError("");
+  setRecommendedCrop("Analyzing...");
+
+  try {
+    const data = await recommendCrop({
+      N: Number(cropData.N),
+      P: Number(cropData.P),
+      K: Number(cropData.K),
+      temperature: Number(cropData.temperature),
+      humidity: Number(cropData.humidity),
+      ph: Number(cropData.ph),
+      rainfall: Number(cropData.rainfall),
+    });
+
+    setRecommendedCrop(data.recommended_crop);
+  } catch (error) {
+    console.error(error);
+    setCropError("Unable to get crop recommendation.");
+    setRecommendedCrop("Unavailable");
+  } finally {
+    setCropLoading(false);
+  }
+};
+
+const handleCropInputChange = (e) => {
+  const { name, value } = e.target;
+
+  setCropData((previous) => ({
+    ...previous,
+    [name]: value,
+  }));
+};
+
+const handleDiseaseImageChange = (e) => {
+  const file = e.target.files?.[0];
+
+  setDiseaseImage(file || null);
+  setDiseaseResult(null);
+  setDiseaseError("");
+};
+
+const handleDiseaseDetection = async () => {
+  if (!diseaseImage) {
+    setDiseaseError("Please select a crop image.");
+    return;
+  }
+
+  setDiseaseLoading(true);
+  setDiseaseError("");
+
+  try {
+    const result = await detectDisease(diseaseImage);
+    setDiseaseResult(result);
+  } catch (error) {
+    console.error(error);
+    setDiseaseError(
+      error.message || "Failed to detect crop disease."
+    );
+  } finally {
+    setDiseaseLoading(false);
+  }
+};
 
   useEffect(() => {
     // Get farmer information from FastAPI
@@ -50,15 +137,34 @@ function App() {
   setFarmRiskLoading(true);
   setFarmRiskError("");
 
-  try {
-    const data = await getFarmRisk(12.9716, 77.5946);
-    setFarmRisk(data);
-  } catch (error) {
-    console.error(error);
-    setFarmRiskError(error.message);
-  } finally {
+  if (!navigator.geolocation) {
+    setFarmRiskError("Location is not supported by this browser.");
     setFarmRiskLoading(false);
+    return;
   }
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+
+        const data = await getFarmRisk(latitude, longitude);
+        setFarmRisk(data);
+      } catch (error) {
+        console.error(error);
+        setFarmRiskError(error.message);
+      } finally {
+        setFarmRiskLoading(false);
+      }
+    },
+    (error) => {
+      console.error(error);
+      setFarmRiskError(
+        "Unable to get your location. Please allow location access."
+      );
+      setFarmRiskLoading(false);
+    }
+  );
 };
 
   return (
@@ -115,6 +221,176 @@ function App() {
             <p>Important notifications</p>
           </div>
         </section>
+        {/* Crop Recommendation Form */}
+<section className="dashboard-section">
+  <h2>🌱 Crop Recommendation</h2>
+  <p>Enter your soil and weather conditions to get an AI-based crop recommendation.</p>
+
+  <form onSubmit={handleCropRecommendation} className="crop-form">
+
+    <div className="form-grid">
+
+      <div>
+        <label>Nitrogen (N)</label>
+        <input
+          type="number"
+          name="N"
+          value={cropData.N}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 90"
+          required
+        />
+      </div>
+
+      <div>
+        <label>Phosphorus (P)</label>
+        <input
+          type="number"
+          name="P"
+          value={cropData.P}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 42"
+          required
+        />
+      </div>
+
+      <div>
+        <label>Potassium (K)</label>
+        <input
+          type="number"
+          name="K"
+          value={cropData.K}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 43"
+          required
+        />
+      </div>
+
+      <div>
+        <label>Temperature (°C)</label>
+        <input
+          type="number"
+          step="0.1"
+          name="temperature"
+          value={cropData.temperature}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 20.8"
+          required
+        />
+      </div>
+
+      <div>
+        <label>Humidity (%)</label>
+        <input
+          type="number"
+          step="0.1"
+          name="humidity"
+          value={cropData.humidity}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 82"
+          required
+        />
+      </div>
+
+      <div>
+        <label>Soil pH</label>
+        <input
+          type="number"
+          step="0.1"
+          name="ph"
+          value={cropData.ph}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 6.5"
+          required
+        />
+      </div>
+
+      <div>
+        <label>Rainfall (mm)</label>
+        <input
+          type="number"
+          step="0.1"
+          name="rainfall"
+          value={cropData.rainfall}
+          onChange={handleCropInputChange}
+          placeholder="e.g. 202.9"
+          required
+        />
+      </div>
+
+    </div>
+
+    <button type="submit" disabled={cropLoading}>
+      {cropLoading ? "🔄 Analyzing..." : "🌱 Recommend Crop"}
+    </button>
+
+  </form>
+
+  {cropError && (
+    <p>{cropError}</p>
+  )}
+
+  {recommendedCrop && recommendedCrop !== "Loading..." && (
+    <div className="farmer-info">
+      <h3>🤖 AI Recommendation</h3>
+      <p>
+        <strong>Recommended Crop:</strong>{" "}
+        {recommendedCrop}
+      </p>
+    </div>
+  )}
+</section>
+
+{/* Crop Disease Detection */}
+<section className="dashboard-section">
+  <h2>🔬 Crop Disease Detection</h2>
+
+  <p>
+    Upload a crop image and let KrishiRakshak AI identify possible
+    crop diseases.
+  </p>
+
+  <input
+    type="file"
+    accept="image/*"
+    onChange={handleDiseaseImageChange}
+  />
+
+  {diseaseImage && (
+    <p>
+      <strong>Selected Image:</strong> {diseaseImage.name}
+    </p>
+  )}
+
+  <button
+    onClick={handleDiseaseDetection}
+    disabled={diseaseLoading}
+  >
+    {diseaseLoading
+      ? "🔄 Analyzing Image..."
+      : "🔬 Detect Crop Disease"}
+  </button>
+
+  {diseaseError && (
+    <p>{diseaseError}</p>
+  )}
+
+  {diseaseResult && (
+    <div className="farmer-info">
+      <h3>🤖 AI Disease Analysis</h3>
+
+      <p>
+        <strong>Prediction:</strong>{" "}
+        {diseaseResult.prediction}
+      </p>
+
+      <p>
+        <strong>Confidence:</strong>{" "}
+        {diseaseResult.confidence}%
+      </p>
+    </div>
+  )}
+</section>
 
                 {/* Farm Risk Analysis */}
         <section className="dashboard-section">
