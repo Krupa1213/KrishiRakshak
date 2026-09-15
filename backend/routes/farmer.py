@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from backend.models.schemas import Farmer, Farm
 from backend.database import farmers_collection, farms_collection
-from backend import farm_risk_api  # import your risk logic
+from backend import farm_risk_api  # make sure this file exists and has calculate_risk()
 
 router = APIRouter(
     prefix="/farmers",
@@ -27,22 +27,29 @@ def create_farmer(farmer: Farmer):
 # Create a farm (with risk calculation)
 @router.post("/farm")
 def create_farm(farm: Farm):
-    farm_data = farm.model_dump()
-    farms_collection.insert_one(farm_data)
+    try:
+        farm_data = farm.model_dump()
+        farms_collection.insert_one(farm_data)
 
-    # Call your risk calculation logic
-    risk_result = farm_risk_api.calculate_risk(
-        latitude=farm.latitude,
-        longitude=farm.longitude,
-        crop=farm.crop,
-        area=farm.area_acres
-    )
+        # Call your risk calculation logic safely
+        risk_result = farm_risk_api.calculate_risk(
+            latitude=farm.latitude,
+            longitude=farm.longitude,
+            crop=farm.crop,
+            area=farm.area_acres
+        )
 
-    return {
-        "message": "Farm created successfully",
-        "farm_id": farm.farm_id,
-        "risk_result": risk_result
-    }
+        return {
+            "message": "Farm created successfully",
+            "farm_id": farm.farm_id,
+            "risk_result": risk_result
+        }
+    except Exception as e:
+        # Catch errors so you don’t get a blank 500
+        return {
+            "message": "Error creating farm",
+            "error": str(e)
+        }
 
 # Get all farms
 @router.get("/farm")
@@ -53,10 +60,7 @@ def get_farms():
 # Get a specific farm
 @router.get("/farm/{farm_id}")
 def get_farm(farm_id: str):
-    farm = farms_collection.find_one(
-        {"farm_id": farm_id},
-        {"_id": 0}
-    )
+    farm = farms_collection.find_one({"farm_id": farm_id}, {"_id": 0})
     if not farm:
         return {"message": "Farm not found"}
     return farm
