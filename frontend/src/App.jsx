@@ -5,10 +5,12 @@ import {
   recommendCrop,
   getFarmRisk,
   detectDisease,
+  getCropHistory
 } from "./services/api";
 
 function App() {
   const [farmer, setFarmer] = useState(null);
+  const [cropHistory, setCropHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recommendedCrop, setRecommendedCrop] = useState("");
@@ -50,6 +52,8 @@ const handleCropRecommendation = async (e) => {
     });
 
     setRecommendedCrop(data.recommended_crop);
+    const history = await getCropHistory();
+setCropHistory(history);
   } catch (error) {
     console.error(error);
     setCropError("Unable to get crop recommendation.");
@@ -114,7 +118,14 @@ const handleDiseaseDetection = async () => {
         setLoading(false);
       });
 
-   
+    getCropHistory()
+    .then((data) => {
+      setCropHistory(data);
+    })
+    .catch((error) => {
+      console.error("Failed to load crop history:", error);
+    });
+
   }, []);
 
   const checkFarmRisk = async () => {
@@ -179,6 +190,11 @@ const handleDiseaseDetection = async () => {
           <button onClick={() => document.getElementById("alerts")?.scrollIntoView({ behavior: "smooth" })}>
   🔔 Alerts
 </button>
+
+<button onClick={() => document.getElementById("farm-risk")?.scrollIntoView({ behavior: "smooth" })}>
+  ⚠️ Farm Risk
+</button>
+
         </nav>
       </aside>
 
@@ -220,6 +236,7 @@ const handleDiseaseDetection = async () => {
             <p>Important notifications</p>
           </div>
         </section>
+
         {/* Crop Recommendation Form */}
 <section id="crop-recommendation" className="dashboard-section">
   <h2>🌱 Crop Recommendation</h2>
@@ -329,13 +346,54 @@ const handleDiseaseDetection = async () => {
     <p>{cropError}</p>
   )}
 
-  {recommendedCrop && recommendedCrop !== "Loading..." && (
+  {recommendedCrop && recommendedCrop !== "Analyzing..." && (
     <div className="farmer-info">
       <h3>🤖 AI Recommendation</h3>
       <p>
         <strong>Recommended Crop:</strong>{" "}
         {recommendedCrop}
       </p>
+    </div>
+  )}
+</section>
+
+{/* Crop Recommendation History */}
+<section className="dashboard-section">
+  <h2>📋 Crop Recommendation History</h2>
+
+  {cropHistory.length === 0 ? (
+    <p>No crop recommendation history available.</p>
+  ) : (
+    <div className="farmer-info">
+      {cropHistory.map((item, index) => (
+        <div key={index}>
+          <p>
+            <strong>Recommendation:</strong>{" "}
+            {item.recommended_crop}
+          </p>
+
+          <p>
+            <strong>N:</strong> {item.input.N} |{" "}
+            <strong>P:</strong> {item.input.P} |{" "}
+            <strong>K:</strong> {item.input.K}
+          </p>
+
+          <p>
+            <strong>Temperature:</strong>{" "}
+            {item.input.temperature}°C |{" "}
+            <strong>Humidity:</strong>{" "}
+            {item.input.humidity}%
+          </p>
+
+          <p>
+            <strong>pH:</strong> {item.input.ph} |{" "}
+            <strong>Rainfall:</strong>{" "}
+            {item.input.rainfall} mm
+          </p>
+
+          <hr />
+        </div>
+      ))}
     </div>
   )}
 </section>
@@ -392,7 +450,7 @@ const handleDiseaseDetection = async () => {
 </section>
 
                 {/* Farm Risk Analysis */}
-        <section className="dashboard-section">
+        <section id="farm-risk" className="dashboard-section">
           <h2>⚠️ Farm Risk Analysis</h2>
 
           <button onClick={checkFarmRisk}>
@@ -482,17 +540,25 @@ const handleDiseaseDetection = async () => {
           <h2>Quick Actions</h2>
 
           <div className="actions">
-            <button>
+            <button onClick={() => document.getElementById("crop-recommendation")?.scrollIntoView({ behavior: "smooth" })}>
               🌱 Get Crop Recommendation
             </button>
 
-            <button>
-              🌦️ Check Weather
-            </button>
+           <button onClick={() => document.getElementById("weather")?.scrollIntoView({ behavior: "smooth" })}>
+  🌦️ Check Weather
+</button>
 
-            <button>
-              💰 Check Market Prices
-            </button>
+            <button onClick={() => document.getElementById("market-prices")?.scrollIntoView({ behavior: "smooth" })}>
+  💰 Check Market Prices
+</button>
+
+            <button onClick={() => document.getElementById("farm-risk")?.scrollIntoView({ behavior: "smooth" })}>
+  ⚠️ Check Farm Risk
+</button>
+
+            <button onClick={() => document.getElementById("disease-detection")?.scrollIntoView({ behavior: "smooth" })}>
+  🔬 Check Crop Disease
+</button>
           </div>
         </section>
       </main>

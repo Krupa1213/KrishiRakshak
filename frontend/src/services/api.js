@@ -58,3 +58,13 @@ export async function detectDisease(imageFile) {
 
   return data;
 }
+
+export async function getCropHistory() {
+  const response = await fetch(`${API_BASE_URL}/crop/history`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch crop history");
+  }
+
+  return await response.json();
+}

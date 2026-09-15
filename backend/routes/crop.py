@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
+from backend.database import db
 from pydantic import BaseModel
 import pandas as pd
 import joblib
 import os
 
 router = APIRouter(prefix="/crop", tags=["Crop Recommendation"])
+crop_history_collection = db["crop_history"]
 
 MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -50,6 +52,22 @@ def recommend_crop(data: CropInput):
 
     prediction = model.predict(input_data)[0]
 
+    crop_history_collection.insert_one({
+        "input": input_data.iloc[0].to_dict(),
+        "recommended_crop": prediction
+    })
+
     return {
         "recommended_crop": prediction
     }
+
+@router.get("/history")
+def get_crop_history():
+    history = list(
+        crop_history_collection.find(
+            {},
+            {"_id": 0}
+        ).sort("_id", -1)
+    )
+
+    return history
