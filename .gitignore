@@ -52,3 +52,4 @@ data/raw/*
 !data/raw/.gitkeep
 !data/raw/processed/
 !data/raw/processed/.gitkeep
+venv312/
