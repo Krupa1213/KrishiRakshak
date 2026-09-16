@@ -206,3 +206,61 @@ header p {
 .farm-health-low {
   border-left: 5px solid #16a34a;
 }
+
+/* Crop Recommendation Form */
+
+.crop-form {
+  margin-top: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.form-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-grid label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-grid input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cbd5cb;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-grid input:focus {
+  border-color: #2f6b3c;
+  box-shadow: 0 0 0 2px rgba(47, 107, 60, 0.12);
+}
+
+.crop-form button {
+  border: none;
+  padding: 13px 20px;
+  border-radius: 8px;
+  background: #2f6b3c;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.crop-form button:hover {
+  background: #24552f;
+}
+
+@media (max-width: 650px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
