@@ -64,9 +64,17 @@ async def predict_disease(file: UploadFile = File(...)):
         predicted_class = CLASS_NAMES[predicted_index]
         confidence = float(prediction[predicted_index])
 
+        recommendations = {
+    "Blight": "Remove affected leaves and monitor the crop regularly. Avoid excessive moisture and maintain good field hygiene.",
+    "Common_Rust": "Monitor the leaves regularly and remove severely affected parts. Maintain proper crop spacing and field hygiene.",
+    "Gray_Leaf_Spot": "Remove severely affected leaves and improve field monitoring. Avoid excessive moisture and maintain good crop hygiene.",
+    "Healthy": "The crop appears healthy. Continue regular monitoring and maintain proper irrigation and crop care."
+}
+
         return {
             "prediction": predicted_class,
-            "confidence": round(confidence * 100, 2)
+            "confidence": round(confidence * 100, 2),
+            "recommendation": recommendations[predicted_class]
         }
 
     except Exception as e:

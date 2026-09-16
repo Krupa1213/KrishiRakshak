@@ -5,8 +5,28 @@ import {
   recommendCrop,
   getFarmRisk,
   detectDisease,
-  getCropHistory
+  getCropHistory,
+  getAdvisory,
+  getMarketPrice,
+  analyzeCropHealth,
+  getDecisionSupport,
+  runWhatIfSimulation,
+  getGovernmentSchemes,
 } from "./services/api";
+
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return "Good Morning, Farmer 👋";
+  } else if (hour >= 12 && hour < 17) {
+    return "Good Afternoon, Farmer 👋";
+  } else if (hour >= 17 && hour < 21) {
+    return "Good Evening, Farmer 👋";
+  } else {
+    return "Good Night, Farmer 👋";
+  }
+}
 
 function App() {
   const [farmer, setFarmer] = useState(null);
@@ -14,6 +34,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recommendedCrop, setRecommendedCrop] = useState("");
+  const [marketPrice, setMarketPrice] = useState(null);
+const [marketPriceLoading, setMarketPriceLoading] = useState(false);
+const [marketPriceError, setMarketPriceError] = useState("");
+const [alerts, setAlerts] = useState([]);
   const [farmRisk, setFarmRisk] = useState(null);
   const [farmRiskLoading, setFarmRiskLoading] = useState(false);
   const [farmRiskError, setFarmRiskError] = useState("");
@@ -31,8 +55,30 @@ const [diseaseResult, setDiseaseResult] = useState(null);
 const [diseaseLoading, setDiseaseLoading] = useState(false);
 const [diseaseError, setDiseaseError] = useState("");
 
+const [cropHealthImage, setCropHealthImage] = useState(null);
+const [cropHealthResult, setCropHealthResult] = useState(null);
+const [cropHealthLoading, setCropHealthLoading] = useState(false);
+const [cropHealthError, setCropHealthError] = useState("");
+
+const [decisionSupport, setDecisionSupport] = useState(null);
+const [decisionLoading, setDecisionLoading] = useState(false);
+const [decisionError, setDecisionError] = useState("");
+
+const [whatIfAction, setWhatIfAction] = useState("increase irrigation");
+const [whatIfResult, setWhatIfResult] = useState(null);
+const [whatIfLoading, setWhatIfLoading] = useState(false);
+const [whatIfError, setWhatIfError] = useState("");
+
+const [governmentSchemes, setGovernmentSchemes] = useState([]);
+const [schemesLoading, setSchemesLoading] = useState(false);
+const [schemesError, setSchemesError] = useState("");
+
+const [advisory, setAdvisory] = useState(null);
+const [advisoryLoading, setAdvisoryLoading] = useState(false);
+const [advisoryError, setAdvisoryError] = useState("");
 const [cropLoading, setCropLoading] = useState(false);
 const [cropError, setCropError] = useState("");
+
 const handleCropRecommendation = async (e) => {
   e.preventDefault();
 
@@ -60,6 +106,91 @@ setCropHistory(history);
     setRecommendedCrop("Unavailable");
   } finally {
     setCropLoading(false);
+  }
+};
+
+const handleCropHealthAnalysis = async () => {
+  if (!cropHealthImage) {
+    setCropHealthError("Please select a crop image.");
+    return;
+  }
+
+  setCropHealthLoading(true);
+  setCropHealthError("");
+
+  try {
+    const result = await analyzeCropHealth(cropHealthImage);
+    setCropHealthResult(result);
+  } catch (error) {
+    console.error(error);
+    setCropHealthError(
+      error.message || "Failed to analyze crop health."
+    );
+  } finally {
+    setCropHealthLoading(false);
+  }
+};
+
+const handleCropHealthImageChange = (e) => {
+  const file = e.target.files?.[0];
+
+  setCropHealthImage(file || null);
+  setCropHealthResult(null);
+  setCropHealthError("");
+};
+const handleDecisionSupport = async () => {
+  if (!farmRisk) {
+    setDecisionError("Please check Farm Risk first.");
+    return;
+  }
+
+  setDecisionLoading(true);
+  setDecisionError("");
+
+  try {
+    const result = await getDecisionSupport({
+      overall_risk: farmRisk.farm_risk.overall_risk,
+      weather_risk: farmRisk.weather.risk.overall_risk,
+      ndvi_risk: farmRisk.satellite.risk_level,
+      crop_health_prediction:
+        cropHealthResult?.prediction || "Unknown",
+    });
+
+    setDecisionSupport(result);
+  } catch (error) {
+    console.error(error);
+    setDecisionError(
+      error.message || "Failed to generate decision support."
+    );
+  } finally {
+    setDecisionLoading(false);
+  }
+};
+
+const handleWhatIfSimulation = async () => {
+  if (!farmRisk) {
+    setWhatIfError("Please check Farm Risk first.");
+    return;
+  }
+
+  setWhatIfLoading(true);
+  setWhatIfError("");
+  setWhatIfResult(null);
+
+  try {
+    const result = await runWhatIfSimulation(
+      farmRisk.farm_risk.overall_score,
+      whatIfAction
+    );
+
+    setWhatIfResult(result);
+  } catch (error) {
+    console.error(error);
+    setWhatIfError(
+      error.message || "Failed to run what-if simulation."
+    );
+  } finally {
+    setWhatIfLoading(false);
   }
 };
 
@@ -102,23 +233,59 @@ const handleDiseaseDetection = async () => {
   }
 };
 
-  useEffect(() => {
-    // Get farmer information from FastAPI
-    getFarmers()
-      .then((data) => {
-        if (data.length > 0) {
-          setFarmer(data[0]);
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        setError("Unable to load farmer information.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+const handleAdvisory = async () => {
+  setAdvisoryLoading(true);
+  setAdvisoryError("");
 
-    getCropHistory()
+  try {
+    const selectedCrop = recommendedCrop || "Unknown";
+
+    // Disease model is currently trained for maize/corn
+    const isMaizeCrop =
+      selectedCrop.toLowerCase() === "maize" ||
+      selectedCrop.toLowerCase() === "corn";
+
+    const disease =
+      isMaizeCrop && diseaseResult?.prediction
+        ? diseaseResult.prediction
+        : "None";
+
+    const data = await getAdvisory({
+      crop: selectedCrop,
+      disease: disease,
+      weather_risk: farmRisk?.farm_risk?.weather_risk || "Low",
+      farm_risk: farmRisk?.farm_risk?.overall_risk || "Low",
+    });
+
+    setAdvisory(data);
+  } catch (error) {
+    console.error(error);
+    setAdvisoryError(
+      error.message || "Failed to get farming advisory."
+    );
+  } finally {
+    setAdvisoryLoading(false);
+  }
+};
+
+ useEffect(() => {
+  // Load farmer information
+  getFarmers()
+    .then((data) => {
+      if (data.length > 0) {
+        setFarmer(data[0]);
+      }
+    })
+    .catch((error) => {
+      console.error("Failed to load farmer information:", error);
+      setError("Unable to load farmer information.");
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+
+  // Load crop recommendation history
+  getCropHistory()
     .then((data) => {
       setCropHistory(data);
     })
@@ -126,7 +293,41 @@ const handleDiseaseDetection = async () => {
       console.error("Failed to load crop history:", error);
     });
 
-  }, []);
+  // Load market price
+  setMarketPriceLoading(true);
+
+  getMarketPrice()
+    .then((data) => {
+      setMarketPrice({
+        price: data.price,
+        crop: data.crop,
+        unit: data.unit,
+      });
+    })
+    .catch((error) => {
+      console.error("Failed to load market price:", error);
+      setMarketPriceError("Unable to load market price.");
+    })
+    .finally(() => {
+      setMarketPriceLoading(false);
+    });
+
+      // Load government schemes
+  setSchemesLoading(true);
+
+  getGovernmentSchemes()
+    .then((data) => {
+      setGovernmentSchemes(data);
+    })
+    .catch((error) => {
+      console.error("Failed to load government schemes:", error);
+      setSchemesError("Unable to load government schemes.");
+    })
+    .finally(() => {
+      setSchemesLoading(false);
+    });
+
+}, []);
 
   const checkFarmRisk = async () => {
   setFarmRiskLoading(true);
@@ -145,6 +346,29 @@ const handleDiseaseDetection = async () => {
 
         const data = await getFarmRisk(latitude, longitude);
         setFarmRisk(data);
+
+        const newAlerts = [];
+
+if (data.farm_risk.overall_risk === "High") {
+  newAlerts.push("⚠️ Farm risk is High");
+}
+
+if (data.weather.risk.overall_risk === "High") {
+  newAlerts.push("🌦️ Weather risk is High");
+}
+
+if (
+  data.satellite.risk_level === "High" ||
+  data.satellite.risk_level === "Medium"
+) {
+  newAlerts.push("🌱 Crop vegetation needs attention");
+}
+
+if (newAlerts.length === 0) {
+  newAlerts.push("✅ No critical alerts");
+}
+
+setAlerts(newAlerts);
       } catch (error) {
         console.error(error);
         setFarmRiskError(error.message);
@@ -181,6 +405,11 @@ const handleDiseaseDetection = async () => {
           <button onClick={() => document.getElementById("disease-detection")?.scrollIntoView({ behavior: "smooth" })}>
   🔬 Disease Detection
 </button>
+
+          <button onClick={() => document.getElementById("crop-health")?.scrollIntoView({ behavior: "smooth" })}>
+  🩺 Crop Health
+</button>
+
           <button onClick={() => document.getElementById("weather")?.scrollIntoView({ behavior: "smooth" })}>
   🌦️ Weather
 </button>
@@ -195,6 +424,30 @@ const handleDiseaseDetection = async () => {
   ⚠️ Farm Risk
 </button>
 
+<button onClick={() => document.getElementById("advisory")?.scrollIntoView({ behavior: "smooth" })}>
+  🌾 Farmer Advisory
+</button>
+
+<button onClick={() => document.getElementById("decision-support")?.scrollIntoView({ behavior: "smooth" })}>
+  🤖 Decision Support
+</button>
+
+<button onClick={() => document.getElementById("what-if")?.scrollIntoView({ behavior: "smooth" })}>
+  🔄 What-If Simulator
+</button>
+
+<button
+  onClick={() =>
+    document
+      .getElementById("government-schemes")
+      ?.scrollIntoView({ behavior: "smooth" })
+  }
+>
+  🏛️ Government Schemes
+</button>
+
+
+
         </nav>
       </aside>
 
@@ -202,40 +455,105 @@ const handleDiseaseDetection = async () => {
       <main className="main-content">
         {/* Header */}
         <header>
-          <h1>Good Morning, Farmer 👋</h1>
+          <h1>{getTimeGreeting()}</h1>
           <p>Smart decisions for better farming</p>
         </header>
 
         {/* Dashboard Cards */}
-        <section className="cards">
-          {/* Weather */}
-          <div id="weather" className="card">
-  <h3>🌦️ Weather</h3>
-            <p className="value">28°C</p>
-            <p>Partly Cloudy</p>
-          </div>
+<section className="cards">
 
-          {/* Crop Recommendation */}
-          <div className="card">
-            <h3>🌱 Crop Recommendation</h3>
-            <p className="value">{recommendedCrop}</p>
-            <p>Recommended by AI model</p>
-          </div>
+  {/* Weather */}
+  <div id="weather" className="card">
+    <h3>🌦️ Weather</h3>
+    <p className="value">
+  {farmRisk ? `${farmRisk.weather.temperature}°C` : "Not checked"}
+</p>
+    <p>
+  {farmRisk
+    ? `Humidity: ${farmRisk.weather.humidity}%`
+    : "Check Farm Risk for weather"}
+</p>
+  </div>
 
-          {/* Market Price */}
-          <div id="market-prices" className="card">
+  {/* Crop Recommendation */}
+  <div className="card">
+    <h3>🌱 Crop Recommendation</h3>
+    <p className="value">
+      {recommendedCrop || "Not analyzed"}
+    </p>
+    <p>Recommended by AI model</p>
+  </div>
+
+{/* Market Price */}
+<div id="market-prices" className="card">
   <h3>💰 Market Price</h3>
-            <p className="value">₹2,450</p>
-            <p>Wheat / Quintal</p>
-          </div>
 
-          {/* Alerts */}
-          <div id="alerts" className="card">
+  {marketPriceLoading ? (
+    <p className="value">Loading...</p>
+  ) : marketPriceError ? (
+    <p>{marketPriceError}</p>
+  ) : marketPrice ? (
+    <>
+      <p className="value">
+        ₹{marketPrice.price.toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        {marketPrice.crop} / {marketPrice.unit}
+      </p>
+
+      <small>Market: Vadodara</small>
+    </>
+  ) : (
+    <p className="value">Not available</p>
+  )}
+</div>
+
+ {/* Alerts */}
+<div id="alerts" className="card">
   <h3>🔔 Alerts</h3>
-            <p className="value">2</p>
-            <p>Important notifications</p>
-          </div>
-        </section>
+
+  <p className="value">{alerts.length}</p>
+
+  {alerts.length === 0 ? (
+    <p>✅ No critical alerts</p>
+  ) : (
+    <div>
+      {alerts.map((alert, index) => (
+        <p key={index}>{alert}</p>
+      ))}
+    </div>
+  )}
+</div>
+
+  {/* Farm Health */}
+  <div
+  className={`card ${
+    farmRisk
+      ? farmRisk.farm_risk.overall_risk === "High"
+        ? "farm-health-high"
+        : farmRisk.farm_risk.overall_risk === "Medium"
+        ? "farm-health-medium"
+        : "farm-health-low"
+      : ""
+  }`}
+>
+    <h3>⚠️ Farm Health</h3>
+
+    <p className="value">
+      {farmRisk
+        ? farmRisk.farm_risk.overall_risk
+        : "Not checked"}
+    </p>
+
+    <p>
+      {farmRisk
+        ? `Risk Score: ${farmRisk.farm_risk.overall_score}/100`
+        : "Check Farm Risk"}
+    </p>
+  </div>
+
+</section>
 
         {/* Crop Recommendation Form */}
 <section id="crop-recommendation" className="dashboard-section">
@@ -442,9 +760,86 @@ const handleDiseaseDetection = async () => {
       </p>
 
       <p>
-        <strong>Confidence:</strong>{" "}
-        {diseaseResult.confidence}%
+  <strong>Confidence:</strong>{" "}
+  {diseaseResult.confidence.toFixed(2)}%
+</p>
+
+<p>
+  <strong>Recommendation:</strong>{" "}
+  {diseaseResult.recommendation}
+</p>
+    </div>
+  )}
+</section>
+
+{/* Crop Health Analysis */}
+<section id="crop-health" className="dashboard-section">
+  <h2>🩺 Crop Health Analysis</h2>
+
+  <p>
+    Upload a crop image to analyze its overall health using AI.
+  </p>
+
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      setCropHealthImage(file || null);
+      setCropHealthResult(null);
+      setCropHealthError("");
+    }}
+  />
+
+  {cropHealthImage && (
+    <p>
+      <strong>Selected Image:</strong> {cropHealthImage.name}
+    </p>
+  )}
+
+  <button
+    onClick={handleCropHealthAnalysis}
+    disabled={cropHealthLoading}
+  >
+    {cropHealthLoading
+      ? "🔄 Analyzing Crop..."
+      : "🩺 Analyze Crop Health"}
+  </button>
+
+  {cropHealthError && (
+    <div className="farmer-info">
+      <p>⚠️ {cropHealthError}</p>
+    </div>
+  )}
+
+  {cropHealthResult && (
+    <div className="farmer-info">
+      <h3>🤖 AI Crop Health Analysis</h3>
+
+      <p>
+        <strong>Prediction:</strong>{" "}
+        {cropHealthResult.prediction}
       </p>
+
+      <p>
+        <strong>Confidence:</strong>{" "}
+        {typeof cropHealthResult.confidence === "number"
+          ? `${(cropHealthResult.confidence * 100).toFixed(2)}%`
+          : "N/A"}
+      </p>
+
+      <p>
+        <strong>Recommendation:</strong>{" "}
+        {cropHealthResult.recommendation}
+      </p>
+
+      {cropHealthResult.image_size && (
+        <p>
+          <strong>Image Size:</strong>{" "}
+          {cropHealthResult.image_size.width} ×{" "}
+          {cropHealthResult.image_size.height}
+        </p>
+      )}
     </div>
   )}
 </section>
@@ -494,6 +889,268 @@ const handleDiseaseDetection = async () => {
             </div>
           )}
         </section>
+
+{/* AI Decision Support */}
+<section id="decision-support" className="dashboard-section">
+  <h2>🤖 AI Decision Support</h2>
+
+  <p>
+    Combine farm risk, weather, satellite, and crop-health information
+    to generate actionable farming recommendations.
+  </p>
+
+  <button
+    onClick={handleDecisionSupport}
+    disabled={decisionLoading}
+  >
+    {decisionLoading
+      ? "🔄 Generating Recommendations..."
+      : "🤖 Generate AI Recommendations"}
+  </button>
+
+  {decisionError && (
+    <div className="farmer-info">
+      <p>⚠️ {decisionError}</p>
+    </div>
+  )}
+
+  {decisionSupport && (
+    <div className="farmer-info">
+      <h3>🌾 AI Decision Support</h3>
+
+      <p>
+        <strong>Overall Risk:</strong>{" "}
+        {decisionSupport.overall_risk}
+      </p>
+
+      <p>
+        <strong>Weather Risk:</strong>{" "}
+        {decisionSupport.weather_risk}
+      </p>
+
+      <p>
+        <strong>NDVI Risk:</strong>{" "}
+        {decisionSupport.ndvi_risk}
+      </p>
+
+      <p>
+        <strong>Crop Health:</strong>{" "}
+        {decisionSupport.crop_health_prediction}
+      </p>
+
+      <div>
+        <strong>📋 Recommended Actions</strong>
+
+        {decisionSupport.recommendations?.map((item, index) => (
+          <p key={index}>
+            {index + 1}. ✅ {item}
+          </p>
+        ))}
+      </div>
+    </div>
+  )}
+</section>
+
+{/* What-If Simulator */}
+<section id="what-if" className="dashboard-section">
+  <h2>🔄 What-If Simulator</h2>
+
+  <p>
+    Simulate different farming actions and see their estimated impact
+    on farm risk.
+  </p>
+
+  <label>
+    Select an action:
+  </label>
+
+  <select
+    value={whatIfAction}
+    onChange={(e) => setWhatIfAction(e.target.value)}
+  >
+    <option value="increase irrigation">
+      Increase Irrigation
+    </option>
+
+    <option value="reduce irrigation">
+      Reduce Irrigation
+    </option>
+
+    <option value="apply fertilizer">
+      Apply Fertilizer
+    </option>
+
+    <option value="improve drainage">
+      Improve Drainage
+    </option>
+
+    <option value="use disease control">
+      Use Disease Control
+    </option>
+
+    <option value="monitor crop closely">
+      Monitor Crop Closely
+    </option>
+
+    <option value="take no action">
+      Take No Action
+    </option>
+  </select>
+
+  <button
+    onClick={handleWhatIfSimulation}
+    disabled={whatIfLoading}
+  >
+    {whatIfLoading
+      ? "🔄 Simulating..."
+      : "🔄 Run Simulation"}
+  </button>
+
+  {whatIfError && (
+    <div className="farmer-info">
+      <p>⚠️ {whatIfError}</p>
+    </div>
+  )}
+
+  {whatIfResult && (
+    <div className="farmer-info">
+      <h3>🤖 Simulation Result</h3>
+
+      <p>
+        <strong>Action:</strong>{" "}
+        {whatIfResult.action}
+      </p>
+
+      <p>
+        <strong>Original Risk Score:</strong>{" "}
+        {whatIfResult.original_score}
+      </p>
+
+      <p>
+        <strong>Simulated Risk Score:</strong>{" "}
+        {whatIfResult.simulated_score}
+      </p>
+
+      <p>
+        <strong>Original Risk:</strong>{" "}
+        {whatIfResult.original_risk}
+      </p>
+
+      <p>
+        <strong>Simulated Risk:</strong>{" "}
+        {whatIfResult.simulated_risk}
+      </p>
+
+      <p>
+        <strong>Impact:</strong>{" "}
+        {whatIfResult.impact}
+      </p>
+
+      <p>
+        <strong>Note:</strong>{" "}
+        {whatIfResult.note}
+      </p>
+    </div>
+  )}
+</section>
+
+{/* Government Schemes */}
+<section id="government-schemes" className="section">
+  <h2>🏛️ Government Schemes</h2>
+
+  {schemesLoading && (
+    <p className="loading">Loading government schemes...</p>
+  )}
+
+  {schemesError && (
+    <p className="error">{schemesError}</p>
+  )}
+
+  {!schemesLoading && !schemesError && (
+    <div className="card-grid">
+      {governmentSchemes.map((scheme, index) => (
+        <div className="card" key={index}>
+          <h3>🌾 {scheme.scheme_name}</h3>
+
+          <p>
+            <strong>Description:</strong>{" "}
+            {scheme.description}
+          </p>
+
+          <p>
+            <strong>State:</strong>{" "}
+            {scheme.state}
+          </p>
+
+          <p>
+            <strong>Eligibility:</strong>{" "}
+            {scheme.eligibility}
+          </p>
+
+          <p>
+            <strong>Benefits:</strong>{" "}
+            {scheme.benefits}
+          </p>
+
+          <a
+            href={scheme.application_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn"
+          >
+            Apply / Learn More →
+          </a>
+        </div>
+      ))}
+    </div>
+  )}
+</section>
+
+{/* Farmer Advisory */}
+<section id="advisory" className="dashboard-section">
+  <h2>🌾 Farmer Advisory</h2>
+
+  <p>
+    Get simple farming advice based on crop health, weather, and farm risk.
+  </p>
+
+  <button
+    onClick={handleAdvisory}
+    disabled={advisoryLoading}
+  >
+    {advisoryLoading
+      ? "🔄 Generating Advice..."
+      : "🌾 Get Farming Advice"}
+  </button>
+
+  {advisoryError && (
+    <div className="farmer-info">
+      <p>⚠️ {advisoryError}</p>
+    </div>
+  )}
+
+  {advisory && (
+    <div className="farmer-info">
+      <h3>🤖 KrishiRakshak Advisory</h3>
+
+      <p>
+        🌱 <strong>Crop:</strong> {advisory.crop}
+      </p>
+
+      <div>
+        <strong>📋 Recommended Actions</strong>
+
+        {advisory.advisory.map((item, index) => (
+          <p key={index}>
+            {index + 1}. ✅ {item}
+          </p>
+        ))}
+      </div>
+    </div>
+  )}
+</section>
+
+
 
         {/* Farmer Information */}
         <section id="farmer-profile" className="dashboard-section">

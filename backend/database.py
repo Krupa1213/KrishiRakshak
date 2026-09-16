@@ -6,10 +6,18 @@ load_dotenv()
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 
-client = MongoClient(MONGODB_URI)
+client = MongoClient(
+    MONGODB_URI,
+    connectTimeoutMS=20000
+)
 
 db = client["KrishiRakshak"]
 
 farmers_collection = db["farmers"]
+farms_collection = db["farms"]
+crops_collection = db["crops"]
+soil_collection = db["soil"]
+market_collection = db["market"]
+government_schemes_collection = db["government_schemes"]
 
 print("MongoDB connection successful!")

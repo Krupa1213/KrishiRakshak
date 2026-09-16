@@ -1,5 +1,4 @@
 const API_BASE_URL = "http://127.0.0.1:8000";
-
 export async function getFarmers() {
   const response = await fetch(`${API_BASE_URL}/farmers/`);
 
@@ -53,7 +52,7 @@ export async function detectDisease(imageFile) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.detail || "Failed to detect crop disease");
+    throw new Error(data.detail || "Failed to analyze crop health");
   }
 
   return data;
@@ -67,4 +66,115 @@ export async function getCropHistory() {
   }
 
   return await response.json();
+}
+
+export async function getAdvisory(advisoryData) {
+  const response = await fetch(`${API_BASE_URL}/advisory/recommend`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(advisoryData),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to get advisory");
+  }
+
+  return data;
+}
+
+export async function getMarketPrice() {
+  const response = await fetch(`${API_BASE_URL}/market/price`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch market price");
+  }
+
+  return await response.json();
+}
+
+export async function analyzeCropHealth(imageFile) {
+  const formData = new FormData();
+  formData.append("file", imageFile);
+
+  const response = await fetch(`${API_BASE_URL}/crop-health/analyze`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to analyze crop health");
+  }
+
+  return data;
+}
+
+
+export async function getDecisionSupport(decisionData) {
+  const response = await fetch(
+    `${API_BASE_URL}/decision-support/recommendations`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(decisionData),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail || "Failed to get decision support recommendations"
+    );
+  }
+
+  return data;
+}
+
+
+export async function runWhatIfSimulation(overallScore, action) {
+  const response = await fetch(
+    `${API_BASE_URL}/decision-support/what-if`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        overall_score: overallScore,
+        action: action,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to run what-if simulation");
+  }
+
+  return data;
+}
+
+export async function getGovernmentSchemes() {
+  const response = await fetch(
+    `${API_BASE_URL}/government-schemes/`
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail || "Failed to fetch government schemes"
+    );
+  }
+
+  return data.schemes;
 }
